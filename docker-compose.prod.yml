@@ -1,0 +1,3 @@
+# Production docker-compose
+# To be configured in Phase 6 - Production deploy
+# Secrets will be injected via Railway environment variables
