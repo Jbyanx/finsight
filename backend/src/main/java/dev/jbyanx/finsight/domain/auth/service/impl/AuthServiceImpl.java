@@ -9,6 +9,7 @@ import dev.jbyanx.finsight.domain.auth.repository.UserRepository;
 import dev.jbyanx.finsight.domain.auth.service.AuthService;
 import dev.jbyanx.finsight.domain.auth.service.TokenService;
 import dev.jbyanx.finsight.infrastructure.security.JwtService;
+import dev.jbyanx.finsight.shared.exception.TokenInvalidException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +43,7 @@ public class AuthServiceImpl implements AuthService {
         Token refreshToken = tokenService.validateToken(rawRefreshToken);
 
         if (refreshToken.getType() != TokenType.REFRESH) {
-            throw new RuntimeException("Token is not a refresh token");
+            throw new TokenInvalidException();
         }
 
         User user = refreshToken.getUser();

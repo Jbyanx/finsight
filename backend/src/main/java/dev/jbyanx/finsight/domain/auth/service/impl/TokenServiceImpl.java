@@ -8,6 +8,9 @@ import dev.jbyanx.finsight.domain.auth.mapper.TokenMapper;
 import dev.jbyanx.finsight.domain.auth.repository.TokenRepository;
 import dev.jbyanx.finsight.domain.auth.service.TokenService;
 import dev.jbyanx.finsight.infrastructure.security.JwtService;
+import dev.jbyanx.finsight.shared.exception.TokenExpiredException;
+import dev.jbyanx.finsight.shared.exception.TokenInvalidException;
+import dev.jbyanx.finsight.shared.exception.TokenRevokedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -52,8 +55,12 @@ public class TokenServiceImpl implements TokenService {
     @Override
     public Token validateToken(String rawToken) {
         return tokenRepository.findByToken(rawToken)
-                .filter(Token::isValid)
-                .orElseThrow(() -> new RuntimeException("Token invalid or expired"));
+                .filter(token -> {
+                    if (token.isRevoked()) throw new TokenRevokedException();
+                    if (!token.isValid()) throw new TokenExpiredException();
+                    return true;
+                })
+                .orElseThrow(TokenInvalidException::new);
     }
 
     @Override

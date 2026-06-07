@@ -22,6 +22,7 @@
 - [ ] Modelo de datos completo (diagrama DBML en architecture.md)
 - [ ] GitHub Actions CI básico (build + test en cada PR)
 - [ ] Tests unitarios de AuthService y TokenService
+- [ ] Suite de tests Fase 1 (AuthService, TokenService, JwtService — mínimo 80% coverage)
 
 ---
 

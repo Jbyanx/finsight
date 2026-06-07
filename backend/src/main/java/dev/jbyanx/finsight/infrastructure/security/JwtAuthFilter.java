@@ -1,7 +1,9 @@
 package dev.jbyanx.finsight.infrastructure.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.jbyanx.finsight.domain.auth.entity.Token;
 import dev.jbyanx.finsight.domain.auth.service.TokenService;
+import dev.jbyanx.finsight.shared.exception.ErrorResponse;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
@@ -24,6 +26,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final TokenService tokenService;
+    private final ObjectMapper objectMapper; // agrega este
 
     @Override
     protected void doFilterInternal(
@@ -83,9 +86,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private void sendError(HttpServletResponse response, int status, String message)
             throws IOException {
         response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
         response.setStatus(status);
-        response.getWriter().write(
-                "{\"error\": \"" + message + "\", \"status\": " + status + "}"
+        objectMapper.writeValue(response.getWriter(),
+                ErrorResponse.of(status, getErrorLabel(status), message, "")
         );
+    }
+
+    private String getErrorLabel(int status) {
+        return switch (status) {
+            case 401 -> "Unauthorized";
+            case 403 -> "Forbidden";
+            default -> "Error";
+        };
     }
 }
