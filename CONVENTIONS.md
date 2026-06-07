@@ -3,12 +3,14 @@
 ## Git
 
 ### Branches
+- El número en la rama corresponde al número del ISSUE, no del PR
+- Los PRs tienen números propios que no se usan en nombres de ramas
 ```
 main          → producción, protegida
 develop       → integración, protegida
-feature/42-crear-tarjeta
-bugfix/45-calculo-utilizacion
-hotfix/67-token-expiry
+feature/14-configurar-ambientes
+bugfix/15-calculo-utilizacion
+hotfix/16-token-expiry
 ```
 
 ### Commits — Conventional Commits
