@@ -8,9 +8,12 @@ sobre su dinero en tiempo real, con mínima fricción.
 ## Entidades del dominio
 
 ### Usuario
-- Autenticación OAuth2 con Google
-- Multi-tenant desde el día uno
-- Cada usuario tiene sus propias tarjetas, cuentas y transacciones aisladas
+- Autenticación OAuth2 con Google (principal)
+- Registro y login propios con formulario (email + contraseña) — Fase 2
+- Botón inteligente: registra si no existe, loguea si ya existe — mismo flujo para ambos métodos
+- Multi-tenant desde el día uno — datos de cada usuario completamente aislados
+- Tokens de sesión persistidos en BD con soporte de múltiples dispositivos simultáneos
+- Access token (15 min) + Refresh token (30 días) con rotation strategy
 
 ### Tarjeta de Crédito
 - Institución (Nu, Rappi, Bancolombia, etc)
@@ -34,11 +37,22 @@ sobre su dinero en tiempo real, con mínima fricción.
 
 ### Transacción
 - Monto, descripción, fecha, categoría
-- Tarjeta o cuenta origen
+- Origen: tarjeta de crédito, cuenta de ahorro o efectivo
 - Tipo: propia / compartida
 - Si compartida: responsable y fecha límite de cobro
-- Número de cuotas
+- Número de cuotas (para compras a crédito)
 - Estado: pendiente / pagada
+
+### Factura
+- Diferente a una Transacción — es recurrente y tiene fecha límite
+- Descripción (plan de telefonía, servicios públicos, Netflix, etc)
+- Monto
+- Frecuencia (mensual, bimestral, etc)
+- Fecha límite de pago
+- Responsable del pago (propio o externo — "cobrarle a mamá")
+- Estado: pendiente / pagada
+- Método de pago asociado (tarjeta, efectivo, transferencia)
+- El bot distingue: "pagué Temu" → Transacción / "debo pagar el recibo de luz el 15" → Factura
 
 ### Deuda Fija
 - Institución, monto total, cuota mensual
@@ -70,16 +84,33 @@ sobre su dinero en tiempo real, con mínima fricción.
 - El sistema registra quién debe qué
 - Alerta N días antes del vencimiento del cobro
 
+### Facturas recurrentes
+- El sistema alerta antes de la fecha límite
+- Distingue facturas propias de las que se deben cobrar a otros
+- "Recuérdale a mamá el plan de telefonía, límite en 5 días"
+
 ### Bot de Telegram
 - Lenguaje natural — el bot interpreta la intención
 - Registro de transacciones por mensaje
+- Registro de facturas recurrentes por mensaje
 - Creación de cuentas y bolsillos por mensaje
 - Consultas de estado y recomendaciones
+- El sistema nunca modifica datos sin confirmación explícita del usuario
+
+### Configuración de Gasto Operativo
+- Los montos y frecuencias son estimados configurables por el usuario
+- Los cambios aplican desde la siguiente transacción, no retroactivo
+- El historial conserva el valor que tenía cuando se registró
+
+### Aprendizaje del perfil
+- El sistema detecta si el gasto real difiere del estimado consistentemente
+- Sugiere actualizar configuración pero nunca lo hace automáticamente
+- El usuario siempre confirma o rechaza los cambios sugeridos
 
 ## Ciclo financiero mensual
 
 ### Fase 1 — Día a día
-Registro de transacciones via bot o app. Actualización de utilización en tiempo real.
+Registro de transacciones y facturas via bot o app. Actualización de utilización en tiempo real.
 
 ### Fase 2 — Pre-corte (2-3 días antes)
 Alertas sobre estado de tarjetas y recomendaciones de abono.
@@ -97,21 +128,12 @@ Redirección de ingresos disponibles hacia metas de ahorro activas.
 - El sistema nunca cuenta el ingreso bruto como disponible
 - Toda recomendación financiera se basa en el ingreso neto real
 
-### Configuración de Gasto Operativo
-- Los montos y frecuencias son estimados configurables por el usuario
-- El usuario puede actualizar desde la app o via bot
-- "Oye, cambia mi gasto de gasolina por dia laboral a $15.000"
-- "A partir de ahora tanqueo full cada 15 días, son $50.000"
-- "A partir de ahora tanqueo full cada que el vehículo me pida reserva, y te indico cuando fue y cuanto me gasté"
-- Los cambios aplican desde la siguiente transacción, no retroactivo
-- El historial conserva el valor que tenía cuando se registró
-
-### Aprendizaje del perfil
-- El sistema detecta si el gasto real difiere del estimado consistentemente
-- Sugiere al usuario actualizar su configuración
-- "Noto que llevas 3 semanas gastando $15.000 en gasolina,
-  ¿quieres que actualice tu estimado de $20.000?"
-- El usuario confirma o rechaza — nunca actualiza automáticamente sin confirmación
+## Buenas prácticas técnicas establecidas
+- Mapeo siempre en el Service, nunca en el Controller (excepto cuando el principal ya es POJO)
+- Paginación en todas las colecciones que crecen con el tiempo
+- Nunca retornar entidades JPA desde controllers o services públicos — siempre DTOs
+- FetchType.LAZY por defecto, @EntityGraph explícito donde se necesite
+- Excepciones específicas con GlobalExceptionHandler — nunca RuntimeException desnuda
 
 ## Stack técnico
 - Backend: Spring Boot 3, Java 21
