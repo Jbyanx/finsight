@@ -15,11 +15,11 @@
 - [x] UserPrincipal como POJO en SecurityContext
 - [x] MapStruct configurado
 - [x] GlobalExceptionHandler base
-- [ ] Excepciones específicas (reemplazar RuntimeException desnuda)
+- [x] Excepciones específicas (reemplazar RuntimeException desnuda)
 - [ ] Registro y login propio con formulario (email + contraseña)
-- [ ] Configuración de ambientes (dev, prod)
-- [ ] Variables de entorno con `.env.example` completo
-- [ ] Modelo de datos completo (diagrama DBML en architecture.md)
+- [x] Configuración de ambientes (dev, prod)
+- [x] Variables de entorno con `.env.example` completo
+- [x] Modelo de datos completo (diagrama DBML en architecture.md)
 - [ ] GitHub Actions CI básico (build + test en cada PR)
 - [ ] Tests unitarios de AuthService y TokenService
 - [ ] Suite de tests Fase 1 (AuthService, TokenService, JwtService — mínimo 80% coverage)
