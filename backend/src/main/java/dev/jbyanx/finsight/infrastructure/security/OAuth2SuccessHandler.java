@@ -30,34 +30,36 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
-        // Extrae los datos que Google nos da
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
         String pictureUrl = oAuth2User.getAttribute("picture");
-        String providerId = oAuth2User.getAttribute("sub"); // ID único de Google
+        String providerId = oAuth2User.getAttribute("sub");
 
-        // El botón inteligente — registra si no existe, loguea si ya existe
         User user = userRepository.findByProviderAndProviderId("google", providerId)
-                .orElseGet(() -> userRepository.save(User.builder()
-                        .email(email)
-                        .name(name)
-                        .pictureUrl(pictureUrl)
-                        .provider("google")
-                        .providerId(providerId)
-                        .build()));
+                .map(existingUser -> {
+                    existingUser.setName(name);
+                    existingUser.setPictureUrl(pictureUrl);
+                    return userRepository.save(existingUser);
+                })
+                .orElseGet(() -> userRepository.findByEmail(email)
+                        .map(localUser -> {
+                            localUser.setProvider("google");
+                            localUser.setProviderId(providerId);
+                            localUser.setName(name);
+                            localUser.setPictureUrl(pictureUrl);
+                            return userRepository.save(localUser);
+                        })
+                        .orElseGet(() -> userRepository.save(User.builder()
+                                .email(email)
+                                .name(name)
+                                .pictureUrl(pictureUrl)
+                                .provider("google")
+                                .providerId(providerId)
+                                .build())));
 
-        // Actualiza datos si cambiaron en Google
-        user.setName(name);
-        user.setPictureUrl(pictureUrl);
-        userRepository.save(user);
-
-        // Device info del request
         String deviceInfo = request.getHeader("User-Agent");
-
-        // Genera los tokens y construye el response
         AuthResponse authResponse = authService.handleOAuth2Login(user, deviceInfo);
 
-        // Responde con JSON directamente — no redirige
         response.setContentType("application/json");
         response.setCharacterEncoding("UTF-8");
         response.setStatus(HttpServletResponse.SC_OK);

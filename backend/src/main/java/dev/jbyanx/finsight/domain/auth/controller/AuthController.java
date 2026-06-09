@@ -3,7 +3,10 @@ package dev.jbyanx.finsight.domain.auth.controller;
 import dev.jbyanx.finsight.domain.auth.dto.AuthResponse;
 import dev.jbyanx.finsight.domain.auth.dto.SessionDTO;
 import dev.jbyanx.finsight.domain.auth.dto.UserDTO;
-import dev.jbyanx.finsight.domain.auth.mapper.TokenMapper;
+import dev.jbyanx.finsight.domain.auth.dto.LoginRequest;
+import dev.jbyanx.finsight.domain.auth.dto.RegisterRequest;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import dev.jbyanx.finsight.domain.auth.mapper.UserMapper;
 import dev.jbyanx.finsight.domain.auth.service.AuthService;
 import dev.jbyanx.finsight.domain.auth.service.TokenService;
@@ -34,6 +37,21 @@ public class AuthController {
                 "googleAuthUrl", "/oauth2/authorization/google",
                 "message", "Redirect to googleAuthUrl to authenticate"
         ));
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<AuthResponse> register(
+            @RequestBody @Valid RegisterRequest request,
+            @RequestHeader(value = "User-Agent", defaultValue = "unknown") String deviceInfo) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(authService.register(request, deviceInfo));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(
+            @RequestBody @Valid LoginRequest request,
+            @RequestHeader(value = "User-Agent", defaultValue = "unknown") String deviceInfo) {
+        return ResponseEntity.ok(authService.login(request, deviceInfo));
     }
 
     @PostMapping("/refresh")
