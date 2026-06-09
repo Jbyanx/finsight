@@ -23,6 +23,7 @@ public class UserPrincipal implements UserDetails {
     private final String pictureUrl;
     private final String provider;
     private final boolean active;
+    private final String passwordHash;
 
     // Si en el futuro agregas roles, aquí irían. Por ahora, lista vacía.
     private final Collection<? extends GrantedAuthority> authorities;
@@ -30,6 +31,7 @@ public class UserPrincipal implements UserDetails {
     /**
      * Factory method para mapear la entidad JPA a este objeto inmutable en memoria.
      */
+
     public static UserPrincipal create(User user) {
         return new UserPrincipal(
                 user.getId(),
@@ -38,8 +40,14 @@ public class UserPrincipal implements UserDetails {
                 user.getPictureUrl(),
                 user.getProvider(),
                 user.isActive(),
-                Collections.emptyList() // Sin roles por ahora
+                user.getPasswordHash(),
+                Collections.emptyList()
         );
+    }
+
+    @Override
+    public String getPassword() {
+        return this.passwordHash; // ya no es null
     }
 
     // --- Métodos obligatorios de UserDetails de Spring Security ---
@@ -47,11 +55,6 @@ public class UserPrincipal implements UserDetails {
     @Override
     public String getUsername() {
         return this.email; // Spring Security usa "username", para nosotros es el email.
-    }
-
-    @Override
-    public String getPassword() {
-        return null; // Como usamos OAuth2 con Google, no hay contraseña local.
     }
 
     @Override
