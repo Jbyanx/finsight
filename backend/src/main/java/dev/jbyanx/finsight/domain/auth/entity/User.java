@@ -23,6 +23,9 @@ public class User {
     @Email(message = "Email must be valid")
     private String email;
 
+    @Column(length = 60) // BCrypt siempre genera 60 caracteres
+    private String passwordHash; // null para usuarios OAuth2
+
     @Column(nullable = false)
     private String name;
 
