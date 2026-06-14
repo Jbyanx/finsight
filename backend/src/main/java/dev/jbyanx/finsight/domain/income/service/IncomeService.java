@@ -21,5 +21,12 @@ public interface IncomeService {
     OperationalExpenseResponse createExpense(String userId, OperationalExpenseRequest request);
     List<OperationalExpenseResponse> getAllExpenses(String userId);
     OperationalExpenseResponse updateExpense(String userId, String expenseId, OperationalExpenseRequest request);
+
+    IncomeSourceResponse patchSource(String userId, String sourceId,
+                                     IncomeSourcePatchRequest request);
+
+    OperationalExpenseResponse patchExpense(String userId, String expenseId,
+                                            OperationalExpensePatchRequest request);
+
     void deleteExpense(String userId, String expenseId);
 }

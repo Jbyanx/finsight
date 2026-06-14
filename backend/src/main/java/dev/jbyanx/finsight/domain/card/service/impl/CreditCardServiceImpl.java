@@ -2,6 +2,7 @@ package dev.jbyanx.finsight.domain.card.service.impl;
 
 import dev.jbyanx.finsight.domain.auth.entity.User;
 import dev.jbyanx.finsight.domain.auth.repository.UserRepository;
+import dev.jbyanx.finsight.domain.card.dto.CreditCardPatchRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardResponse;
 import dev.jbyanx.finsight.domain.card.entity.CreditCard;
@@ -37,6 +38,28 @@ public class CreditCardServiceImpl implements CreditCardService {
                 .cutOffDay(request.getCutOffDay())
                 .paymentDueDay(request.getPaymentDueDay())
                 .build();
+
+        return creditCardMapper.toResponse(creditCardRepository.save(card));
+    }
+
+    @Override
+    @Transactional
+    public CreditCardResponse patch(String userId, String cardId,
+                                    CreditCardPatchRequest request) {
+        CreditCard card = findCardBelongingToUser(userId, cardId);
+
+        if (request.getNickname() != null) card.setNickname(request.getNickname());
+        if (request.getCreditLimit() != null) {
+            // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado
+            if (request.getCreditLimit().compareTo(card.getUsedAmount()) < 0) {
+                throw new UnauthorizedException(
+                        "New credit limit cannot be less than current used amount: "
+                                + card.getUsedAmount());
+            }
+            card.setCreditLimit(request.getCreditLimit());
+        }
+        if (request.getCutOffDay() != null) card.setCutOffDay(request.getCutOffDay());
+        if (request.getPaymentDueDay() != null) card.setPaymentDueDay(request.getPaymentDueDay());
 
         return creditCardMapper.toResponse(creditCardRepository.save(card));
     }

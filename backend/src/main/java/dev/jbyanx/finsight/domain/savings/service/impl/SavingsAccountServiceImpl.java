@@ -10,6 +10,7 @@ import dev.jbyanx.finsight.domain.savings.repository.PocketRepository;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
 import dev.jbyanx.finsight.domain.savings.service.SavingsAccountService;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
+import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +68,49 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         account.setSharedOwnerName(request.getSharedOwnerName());
 
         return savingsAccountMapper.toResponse(savingsAccountRepository.save(account));
+    }
+
+    @Override
+    @Transactional
+    public SavingsAccountResponse patch(String userId, String accountId,
+                                        SavingsAccountPatchRequest request) {
+        SavingsAccount account = findAccountBelongingToUser(userId, accountId);
+
+        if (request.getNickname() != null) account.setNickname(request.getNickname());
+        if (request.getIsShared() != null) {
+            account.setShared(request.getIsShared());
+            // Regla de negocio: si deja de ser compartida, limpia el nombre del dueño
+            if (!request.getIsShared()) account.setSharedOwnerName(null);
+        }
+        if (request.getSharedOwnerName() != null)
+            account.setSharedOwnerName(request.getSharedOwnerName());
+
+        return savingsAccountMapper.toResponse(savingsAccountRepository.save(account));
+    }
+
+    @Override
+    @Transactional
+    public PocketResponse patchPocket(String userId, String accountId,
+                                      String pocketId, PocketPatchRequest request) {
+        findAccountBelongingToUser(userId, accountId);
+
+        Pocket pocket = pocketRepository.findByIdAndSavingsAccountId(pocketId, accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
+
+        if (request.getName() != null) pocket.setName(request.getName());
+        if (request.isRemoveGoal()) {
+            pocket.setGoalAmount(null);
+        } else if (request.getGoalAmount() != null) {
+            // Regla de negocio: la meta no puede ser menor al saldo actual
+            if (request.getGoalAmount().compareTo(pocket.getBalance()) < 0) {
+                throw new UnauthorizedException(
+                        "Goal amount cannot be less than current balance: "
+                                + pocket.getBalance());
+            }
+            pocket.setGoalAmount(request.getGoalAmount());
+        }
+
+        return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
     }
 
     @Override
