@@ -20,5 +20,11 @@ public interface SavingsAccountService {
 
     PocketResponse updatePocket(String userId, String accountId, String pocketId, PocketRequest request);
 
+    SavingsAccountResponse patch(String userId, String accountId,
+                                 SavingsAccountPatchRequest request);
+
+    PocketResponse patchPocket(String userId, String accountId,
+                               String pocketId, PocketPatchRequest request);
+
     void deletePocket(String userId, String accountId, String pocketId);
 }

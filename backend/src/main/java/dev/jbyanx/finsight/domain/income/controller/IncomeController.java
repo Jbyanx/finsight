@@ -84,6 +84,24 @@ public class IncomeController {
                 .body(incomeService.createExpense(principal.getId(), request));
     }
 
+    @PatchMapping("/sources/{sourceId}")
+    public ResponseEntity<IncomeSourceResponse> patchSource(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String sourceId,
+            @RequestBody @Valid IncomeSourcePatchRequest request) {
+        return ResponseEntity.ok(
+                incomeService.patchSource(principal.getId(), sourceId, request));
+    }
+
+    @PatchMapping("/expenses/{expenseId}")
+    public ResponseEntity<OperationalExpenseResponse> patchExpense(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String expenseId,
+            @RequestBody @Valid OperationalExpensePatchRequest request) {
+        return ResponseEntity.ok(
+                incomeService.patchExpense(principal.getId(), expenseId, request));
+    }
+
     @GetMapping("/expenses")
     public ResponseEntity<List<OperationalExpenseResponse>> getAllExpenses(
             @AuthenticationPrincipal UserPrincipal principal) {

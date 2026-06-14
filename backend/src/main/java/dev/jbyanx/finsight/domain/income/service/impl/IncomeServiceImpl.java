@@ -182,6 +182,39 @@ public class IncomeServiceImpl implements IncomeService {
     }
 
     @Override
+    @Transactional
+    public IncomeSourceResponse patchSource(String userId, String sourceId,
+                                            IncomeSourcePatchRequest request) {
+        IncomeSource source = incomeSourceRepository.findByIdAndUserId(sourceId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("IncomeSource", sourceId));
+
+        if (request.getDescription() != null) source.setDescription(request.getDescription());
+        if (request.getType() != null) source.setType(request.getType());
+        if (request.getEstimatedAmount() != null)
+            source.setEstimatedAmount(request.getEstimatedAmount());
+        if (request.getFrequency() != null) source.setFrequency(request.getFrequency());
+
+        return incomeMapper.toSourceResponse(incomeSourceRepository.save(source));
+    }
+
+    @Override
+    @Transactional
+    public OperationalExpenseResponse patchExpense(String userId, String expenseId,
+                                                   OperationalExpensePatchRequest request) {
+        OperationalExpense expense = operationalExpenseRepository
+                .findByIdAndUserId(expenseId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "OperationalExpense", expenseId));
+
+        if (request.getDescription() != null) expense.setDescription(request.getDescription());
+        if (request.getFrequency() != null) expense.setFrequency(request.getFrequency());
+        if (request.getEstimatedAmount() != null)
+            expense.setEstimatedAmount(request.getEstimatedAmount());
+
+        return incomeMapper.toExpenseResponse(operationalExpenseRepository.save(expense));
+    }
+
+    @Override
     public List<OperationalExpenseResponse> getAllExpenses(String userId) {
         return incomeMapper.toExpenseResponseList(
                 operationalExpenseRepository.findAllByUserIdAndActiveTrue(userId));

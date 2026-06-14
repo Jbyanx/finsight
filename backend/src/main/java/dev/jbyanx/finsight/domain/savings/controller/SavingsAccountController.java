@@ -48,6 +48,25 @@ public class SavingsAccountController {
                 savingsAccountService.update(principal.getId(), accountId, request));
     }
 
+    @PatchMapping("/{accountId}")
+    public ResponseEntity<SavingsAccountResponse> patch(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String accountId,
+            @RequestBody @Valid SavingsAccountPatchRequest request) {
+        return ResponseEntity.ok(
+                savingsAccountService.patch(principal.getId(), accountId, request));
+    }
+
+    @PatchMapping("/{accountId}/pockets/{pocketId}")
+    public ResponseEntity<PocketResponse> patchPocket(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String accountId,
+            @PathVariable String pocketId,
+            @RequestBody @Valid PocketPatchRequest request) {
+        return ResponseEntity.ok(savingsAccountService.patchPocket(
+                principal.getId(), accountId, pocketId, request));
+    }
+
     @DeleteMapping("/{accountId}")
     public ResponseEntity<Void> delete(
             @AuthenticationPrincipal UserPrincipal principal,
