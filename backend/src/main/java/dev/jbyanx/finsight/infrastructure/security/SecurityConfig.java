@@ -37,6 +37,10 @@ public class SecurityConfig {
                 // CORS configurado para el frontend
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
+                //Desactivar la pagina de spring security
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+
                 // Sin sesiones — stateless
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
