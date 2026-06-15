@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.savings.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Getter;
@@ -18,7 +19,7 @@ public class SavingsAccountRequest {
     @PositiveOrZero(message = "Balance cannot be negative")
     private BigDecimal balance;
 
-    private boolean isShared;
+    private boolean shared;
 
     private String sharedOwnerName;
 }

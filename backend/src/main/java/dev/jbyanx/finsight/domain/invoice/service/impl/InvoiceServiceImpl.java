@@ -54,7 +54,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .dueDay(request.getDueDay())
                 .paymentMethod(request.getPaymentMethod())
                 .creditCard(creditCard)
-                .isOwn(request.isOwn())
+                .own(request.isOwn())
                 .responsibleName(request.getResponsibleName())
                 .payerNote(request.getPayerNote())
                 .build();

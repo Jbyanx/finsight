@@ -105,7 +105,7 @@ public class TransactionServiceImpl implements TransactionService {
                 .originType(request.getOriginType())
                 .creditCard(creditCard)
                 .savingsAccount(savingsAccount)
-                .isShared(request.isShared())
+                .shared(request.isShared())
                 .sharedWithName(request.getSharedWithName())
                 .sharedAmount(request.getSharedAmount())
                 .paymentDeadline(request.getPaymentDeadline())
@@ -138,7 +138,7 @@ public class TransactionServiceImpl implements TransactionService {
     @Override
     public Page<TransactionResponse> getShared(String userId, Pageable pageable) {
         return transactionRepository
-                .findAllByUserIdAndIsSharedTrueOrderByDateDesc(userId, pageable)
+                .findAllByUserIdAndSharedTrueOrderByDateDesc(userId, pageable)
                 .map(transactionMapper::toResponse);
     }
 

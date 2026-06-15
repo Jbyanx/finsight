@@ -7,6 +7,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SavingsAccountPatchRequest {
     private String nickname;
-    private Boolean isShared;
+    private Boolean shared;
     private String sharedOwnerName;
 }

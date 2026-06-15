@@ -50,7 +50,7 @@ public class Transaction {
     private SavingsAccount savingsAccount;
 
     @Column(nullable = false)
-    private boolean isShared;
+    private boolean shared;
 
     @Column(length = 100)
     private String sharedWithName;
@@ -81,7 +81,7 @@ public class Transaction {
         if (installments == null) installments = 1;
         if (currentInstallment == null) currentInstallment = 1;
         if (status == null) status = TransactionStatus.COMPLETED;
-        if (!isShared) {
+        if (!shared) {
             sharedWithName = null;
             sharedAmount = null;
             paymentDeadline = null;

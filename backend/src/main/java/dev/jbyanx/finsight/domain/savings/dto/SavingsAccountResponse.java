@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.savings.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 import java.math.BigDecimal;
@@ -15,7 +16,7 @@ public class SavingsAccountResponse {
     private String nickname;
     private BigDecimal balance;
     private BigDecimal availableBalance;
-    private boolean isShared;
+    private boolean shared;
     private String sharedOwnerName;
     private List<PocketResponse> pockets;
     private LocalDateTime createdAt;
