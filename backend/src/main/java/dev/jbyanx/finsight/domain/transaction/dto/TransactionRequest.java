@@ -29,7 +29,7 @@ public class TransactionRequest {
     private String creditCardId;
     private String savingsAccountId;
 
-    private boolean isShared;
+    private boolean shared;
     private String sharedWithName;
     private BigDecimal sharedAmount;
     private LocalDateTime paymentDeadline;

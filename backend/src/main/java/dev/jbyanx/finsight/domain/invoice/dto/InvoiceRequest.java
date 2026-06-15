@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.invoice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.jbyanx.finsight.domain.invoice.entity.Invoice.InvoiceFrequency;
 import dev.jbyanx.finsight.domain.invoice.entity.Invoice.PaymentMethod;
 import jakarta.validation.constraints.*;
@@ -28,7 +29,7 @@ public class InvoiceRequest {
     private PaymentMethod paymentMethod;
     private String creditCardId;
 
-    private boolean isOwn = true;
+    private boolean own;
     private String responsibleName;
     private String payerNote;
 }

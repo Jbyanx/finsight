@@ -44,8 +44,8 @@ public class Invoice {
     @JoinColumn(name = "credit_card_id")
     private CreditCard creditCard;
 
-    @Column(nullable = false)
-    private boolean isOwn;
+    @Column(name = "is_own", nullable = false)
+    private boolean own;
 
     @Column(length = 100)
     private String responsibleName;
@@ -63,7 +63,7 @@ public class Invoice {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         active = true;
-        if (isOwn) responsibleName = null;
+        if (own) responsibleName = null;
     }
 
     public enum InvoiceFrequency {

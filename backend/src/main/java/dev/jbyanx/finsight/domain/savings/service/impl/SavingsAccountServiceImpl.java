@@ -37,7 +37,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
                 .institution(request.getInstitution())
                 .nickname(request.getNickname())
                 .balance(request.getBalance() != null ? request.getBalance() : BigDecimal.ZERO)
-                .isShared(request.isShared())
+                .shared(request.isShared())
                 .sharedOwnerName(request.getSharedOwnerName())
                 .build();
 
@@ -77,10 +77,10 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         SavingsAccount account = findAccountBelongingToUser(userId, accountId);
 
         if (request.getNickname() != null) account.setNickname(request.getNickname());
-        if (request.getIsShared() != null) {
-            account.setShared(request.getIsShared());
+        if (request.getShared() != null) {
+            account.setShared(request.getShared());
             // Regla de negocio: si deja de ser compartida, limpia el nombre del dueño
-            if (!request.getIsShared()) account.setSharedOwnerName(null);
+            if (!request.getShared()) account.setSharedOwnerName(null);
         }
         if (request.getSharedOwnerName() != null)
             account.setSharedOwnerName(request.getSharedOwnerName());

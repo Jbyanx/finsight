@@ -16,7 +16,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, String
     Page<Transaction> findAllByUserIdAndCreditCardIdOrderByDateDesc(
             String userId, String cardId, Pageable pageable);
 
-    Page<Transaction> findAllByUserIdAndIsSharedTrueOrderByDateDesc(
+    Page<Transaction> findAllByUserIdAndSharedTrueOrderByDateDesc(
             String userId, Pageable pageable);
 
     @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
@@ -27,7 +27,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, String
             String cardId, LocalDateTime from, LocalDateTime to);
 
     @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId " +
-            "AND t.isShared = true " +
+            "AND t.shared = true " +
             "AND t.paymentDeadline < :now " +
             "AND t.status = 'PENDING'")
     Page<Transaction> findOverdueSharedTransactions(

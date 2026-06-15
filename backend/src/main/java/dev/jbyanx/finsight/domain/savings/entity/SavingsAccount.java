@@ -35,7 +35,7 @@ public class SavingsAccount {
     private BigDecimal balance;
 
     @Column(nullable = false)
-    private boolean isShared;
+    private boolean shared;
 
     @Column(length = 100)
     private String sharedOwnerName;

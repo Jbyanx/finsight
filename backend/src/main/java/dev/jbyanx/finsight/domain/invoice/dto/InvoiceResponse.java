@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.invoice.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.jbyanx.finsight.domain.invoice.entity.Invoice.InvoiceFrequency;
 import dev.jbyanx.finsight.domain.invoice.entity.Invoice.PaymentMethod;
 import lombok.Builder;
@@ -17,7 +18,7 @@ public class InvoiceResponse {
     private Integer dueDay;
     private PaymentMethod paymentMethod;
     private String creditCardName;
-    private boolean isOwn;
+    private boolean own;
     private String responsibleName;
     private String payerNote;
     private LocalDateTime createdAt;

@@ -18,7 +18,7 @@ public class TransactionResponse {
     private LocalDateTime date;
     private OriginType originType;
     private String originName;
-    private boolean isShared;
+    private boolean shared;
     private String sharedWithName;
     private BigDecimal sharedAmount;
     private LocalDateTime paymentDeadline;
