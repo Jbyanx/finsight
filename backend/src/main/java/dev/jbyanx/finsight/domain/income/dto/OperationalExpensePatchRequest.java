@@ -12,6 +12,8 @@ public class OperationalExpensePatchRequest {
     private String description;
     private IncomeFrequency frequency;
 
+    private Integer occurrencesPerMonth;
+
     @DecimalMin(value = "0.01")
     private BigDecimal estimatedAmount;
 }

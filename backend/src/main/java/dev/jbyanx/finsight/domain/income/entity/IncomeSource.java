@@ -36,6 +36,8 @@ public class IncomeSource {
     @Enumerated(EnumType.STRING)
     private IncomeFrequency frequency;
 
+    private Integer occurrencesPerMonth; // cuántas veces ocurre este ingreso/gasto al mes
+
     @Column(nullable = false)
     private boolean active;
 

@@ -18,6 +18,8 @@ public class OperationalExpenseRequest {
     @NotNull(message = "Frequency is required")
     private IncomeFrequency frequency;
 
+    private Integer occurrencesPerMonth;
+
     @NotNull(message = "Estimated amount is required")
     @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
     private BigDecimal estimatedAmount;

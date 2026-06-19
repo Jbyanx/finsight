@@ -5,12 +5,16 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Getter
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class FixedDebtRequest {
 
     @NotBlank(message = "Institution is required")
@@ -25,6 +29,8 @@ public class FixedDebtRequest {
     @NotNull(message = "Monthly payment is required")
     @DecimalMin(value = "0.01", message = "Monthly payment must be greater than 0")
     private BigDecimal monthlyPayment;
+
+    private BigDecimal interestRate; // opcional, para cálculos avanzados
 
     @NotNull(message = "Payment due day is required")
     @Min(1) @Max(31)

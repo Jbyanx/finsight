@@ -9,6 +9,7 @@ import dev.jbyanx.finsight.domain.card.entity.CreditCard;
 import dev.jbyanx.finsight.domain.card.mapper.CreditCardMapper;
 import dev.jbyanx.finsight.domain.card.repository.CreditCardRepository;
 import dev.jbyanx.finsight.domain.card.service.CreditCardService;
+import dev.jbyanx.finsight.shared.exception.InvalidCreditLimitException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
 import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
@@ -52,7 +53,7 @@ public class CreditCardServiceImpl implements CreditCardService {
         if (request.getCreditLimit() != null) {
             // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado
             if (request.getCreditLimit().compareTo(card.getUsedAmount()) < 0) {
-                throw new UnauthorizedException(
+                throw new InvalidCreditLimitException(
                         "New credit limit cannot be less than current used amount: "
                                 + card.getUsedAmount());
             }

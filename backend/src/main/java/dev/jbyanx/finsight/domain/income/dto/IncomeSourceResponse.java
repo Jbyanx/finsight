@@ -15,5 +15,6 @@ public class IncomeSourceResponse {
     private IncomeType type;
     private BigDecimal estimatedAmount;
     private IncomeFrequency frequency;
+    private Integer occurrencesPerMonth;
     private LocalDateTime createdAt;
 }

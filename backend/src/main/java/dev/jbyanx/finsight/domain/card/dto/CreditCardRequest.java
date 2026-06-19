@@ -1,12 +1,16 @@
 package dev.jbyanx.finsight.domain.card.dto;
 
 import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 
 @Getter
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class CreditCardRequest {
 
     @NotBlank(message = "Institution is required")
