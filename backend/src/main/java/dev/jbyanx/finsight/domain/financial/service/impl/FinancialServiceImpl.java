@@ -149,11 +149,17 @@ public class FinancialServiceImpl implements FinancialService {
     }
 
     private BigDecimal normalizeToMonthly(IncomeSource source) {
-        if (source.getFrequency() == null) return source.getEstimatedAmount();
+        if (source.getEstimatedAmount() == null) return BigDecimal.ZERO;
+        if (source.getOccurrencesPerMonth() != null) {
+            return source.getEstimatedAmount()
+                    .multiply(BigDecimal.valueOf(source.getOccurrencesPerMonth()));
+        }
+        // fallback si no especifica occurrences
         return switch (source.getFrequency()) {
             case PER_SHIFT -> source.getEstimatedAmount().multiply(BigDecimal.valueOf(12));
             case WEEKLY -> source.getEstimatedAmount().multiply(BigDecimal.valueOf(4));
             case MONTHLY -> source.getEstimatedAmount();
+            case null -> BigDecimal.ZERO;
         };
     }
 

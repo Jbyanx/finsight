@@ -177,10 +177,9 @@ TELEGRAM_BOT_USERNAME=
 ---
 
 ## Coverage mínimo por fase
-- Fase 1: 0.40 (alcanzado)
-- Fase 2: 0.30 durante desarrollo, sube a 0.60 al cerrar con tests
-- Fase 3+: mínimo 0.60 mantenido
-
+- Fase 1: 0.40 ✅ alcanzado
+- Fase 2: 0.35 ✅ alcanzado (services + integration tests de Card, Debt, Transaction, Financial)
+- Fase 3+: meta 0.60, subir incrementalmente
 ---
 
 ## React — Frontend

@@ -13,6 +13,7 @@ public class FixedDebtResponse {
     private String description;
     private BigDecimal totalAmount;
     private BigDecimal monthlyPayment;
+    private BigDecimal interestRate;
     private Integer paymentDueDay;
     private BigDecimal remainingBalance;
     private BigDecimal paidAmount;

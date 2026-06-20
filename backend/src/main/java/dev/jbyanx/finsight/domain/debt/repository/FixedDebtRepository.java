@@ -13,9 +13,9 @@ public interface FixedDebtRepository extends JpaRepository<FixedDebt, String> {
     Optional<FixedDebt> findByIdAndUserId(String id, String userId);
 
     // Deudas que vencen en X días — para alertas pre-corte
-    @Query("SELECT d FROM FixedDebt d WHERE d.user.id = :userId " +
-            "AND d.active = true " +
-            "AND d.paymentDueDay BETWEEN :fromDay AND :toDay")
+    @Query("SELECT d FROM FixedDebt d WHERE d.user.id = :userId AND d.active = true AND " +
+            "((:fromDay <= :toDay AND d.paymentDueDay BETWEEN :fromDay AND :toDay) OR " +
+            " (:fromDay > :toDay AND (d.paymentDueDay >= :fromDay OR d.paymentDueDay <= :toDay)))")
     List<FixedDebt> findUpcomingByUserId(String userId, int fromDay, int toDay);
 
     // Total de deuda restante del usuario

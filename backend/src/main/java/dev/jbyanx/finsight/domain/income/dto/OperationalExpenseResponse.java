@@ -12,6 +12,7 @@ public class OperationalExpenseResponse {
     private String id;
     private String description;
     private IncomeFrequency frequency;
+    private Integer occurrencesPerMonth;
     private BigDecimal estimatedAmount;
     private String incomeSourceDescription;
     private LocalDateTime createdAt;

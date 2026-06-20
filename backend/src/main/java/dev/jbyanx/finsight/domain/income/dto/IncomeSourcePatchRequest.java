@@ -13,4 +13,5 @@ public class IncomeSourcePatchRequest {
     private IncomeType type;
     private BigDecimal estimatedAmount;
     private IncomeFrequency frequency;
+    private Integer occurrencesPerMonth;
 }

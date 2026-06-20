@@ -19,5 +19,8 @@ public class IncomeSourceRequest {
     private IncomeType type;
 
     private BigDecimal estimatedAmount;
+
+    private Integer occurrencesPerMonth;
+
     private IncomeFrequency frequency;
 }

@@ -37,6 +37,8 @@ public class OperationalExpense {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal estimatedAmount;
 
+    private Integer occurrencesPerMonth; // cuántas veces ocurre este ingreso/gasto al mes
+
     @Column(nullable = false)
     private boolean active;
 
