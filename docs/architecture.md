@@ -92,6 +92,7 @@ Table invoices {
   frequency varchar(20) [not null, note: 'MONTHLY | BIMONTHLY | ANNUAL']
   due_day int [not null, note: 'Día del mes límite de pago']
   payment_method varchar(20) [note: 'CREDIT_CARD | CASH | TRANSFER']
+    payer_note varchar(255) [note: 'Ej: Factura de luz de papá — yo pago pero él reembolsa']
   credit_card_id uuid [ref: > credit_cards.id]
   is_own boolean [not null, default: true, note: 'false = cobrar a alguien']
   responsible_name varchar(100) [note: 'Nombre si is_own=false']
@@ -103,8 +104,14 @@ Table invoice_payments {
   id uuid [pk, default: `gen_random_uuid()`]
   invoice_id uuid [not null, ref: > invoices.id]
   amount_paid decimal(15,2) [not null]
-  paid_at timestamp [not null]
+  paid_at timestamp
+  period_month int [not null, note: '1-12']
+  period_year int [not null]
+  status varchar(20) [not null, default: 'PENDING', note: 'PENDING | PAID | OVERDUE']
   notes varchar(255)
+  voucher_url varchar(500) [note: 'URL del comprobante — imagen o PDF']
+  voucher_type varchar(10) [note: 'IMAGE | PDF | null']
+  created_at timestamp [not null]
 }
 
 Table fixed_debts {
@@ -132,12 +139,26 @@ Table operational_expenses {
 }
 
 Table income_sources {
-  id uuid [pk, default: `gen_random_uuid()`]
+  id uuid [pk]
   user_id uuid [not null, ref: > users.id]
-  description varchar(255) [not null, note: 'Turno hotel, freelance...']
-  estimated_amount decimal(15,2) [not null]
-  frequency varchar(20) [not null, note: 'PER_SHIFT | WEEKLY | MONTHLY']
+  description varchar(255) [not null, note: 'Turno hotel, mesada, venta...']
+  type varchar(10) [not null, note: 'FIXED | VARIABLE']
+  estimated_amount decimal(15,2) [note: 'null si VARIABLE']
+  frequency varchar(20) [note: 'PER_SHIFT | WEEKLY | MONTHLY | null si VARIABLE']
   active boolean [not null, default: true]
+  created_at timestamp [not null]
+}
+
+Table income_entries {
+  id uuid [pk]
+  user_id uuid [not null, ref: > users.id]
+  income_source_id uuid [ref: > income_sources.id, note: 'null si ingreso espontáneo']
+  amount decimal(15,2) [not null]
+  description varchar(255)
+  received_at timestamp [not null]
+  destination_type varchar(20) [note: 'CASH | SAVINGS | POCKET']
+  savings_account_id uuid [ref: > savings_accounts.id]
+  pocket_id uuid [ref: > pockets.id]
   created_at timestamp [not null]
 }
 

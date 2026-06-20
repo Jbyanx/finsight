@@ -1,0 +1,115 @@
+package dev.jbyanx.finsight.domain.card.service.impl;
+
+import dev.jbyanx.finsight.domain.auth.entity.User;
+import dev.jbyanx.finsight.domain.auth.repository.UserRepository;
+import dev.jbyanx.finsight.domain.card.dto.CreditCardPatchRequest;
+import dev.jbyanx.finsight.domain.card.dto.CreditCardRequest;
+import dev.jbyanx.finsight.domain.card.dto.CreditCardResponse;
+import dev.jbyanx.finsight.domain.card.entity.CreditCard;
+import dev.jbyanx.finsight.domain.card.mapper.CreditCardMapper;
+import dev.jbyanx.finsight.domain.card.repository.CreditCardRepository;
+import dev.jbyanx.finsight.domain.card.service.CreditCardService;
+import dev.jbyanx.finsight.shared.exception.InvalidCreditLimitException;
+import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
+import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class CreditCardServiceImpl implements CreditCardService {
+
+    private final CreditCardRepository creditCardRepository;
+    private final UserRepository userRepository;
+    private final CreditCardMapper creditCardMapper;
+
+    @Override
+    @Transactional
+    public CreditCardResponse create(String userId, CreditCardRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        CreditCard card = CreditCard.builder()
+                .user(user)
+                .institution(request.getInstitution())
+                .nickname(request.getNickname())
+                .creditLimit(request.getCreditLimit())
+                .cutOffDay(request.getCutOffDay())
+                .paymentDueDay(request.getPaymentDueDay())
+                .build();
+
+        return creditCardMapper.toResponse(creditCardRepository.save(card));
+    }
+
+    @Override
+    @Transactional
+    public CreditCardResponse patch(String userId, String cardId,
+                                    CreditCardPatchRequest request) {
+        CreditCard card = findCardBelongingToUser(userId, cardId);
+
+        if (request.getNickname() != null) card.setNickname(request.getNickname());
+        if (request.getCreditLimit() != null) {
+            // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado
+            if (request.getCreditLimit().compareTo(card.getUsedAmount()) < 0) {
+                throw new InvalidCreditLimitException(
+                        "New credit limit cannot be less than current used amount: "
+                                + card.getUsedAmount());
+            }
+            card.setCreditLimit(request.getCreditLimit());
+        }
+        if (request.getCutOffDay() != null) card.setCutOffDay(request.getCutOffDay());
+        if (request.getPaymentDueDay() != null) card.setPaymentDueDay(request.getPaymentDueDay());
+
+        return creditCardMapper.toResponse(creditCardRepository.save(card));
+    }
+
+    @Override
+    public CreditCardResponse getById(String userId, String cardId) {
+        CreditCard card = findCardBelongingToUser(userId, cardId);
+        return creditCardMapper.toResponse(card);
+    }
+
+    @Override
+    public List<CreditCardResponse> getAllByUser(String userId) {
+        return creditCardMapper.toResponseList(
+                creditCardRepository.findAllByUserIdAndActiveTrue(userId)
+        );
+    }
+
+    @Override
+    @Transactional
+    public CreditCardResponse update(String userId, String cardId, CreditCardRequest request) {
+        CreditCard card = findCardBelongingToUser(userId, cardId);
+
+        card.setInstitution(request.getInstitution());
+        card.setNickname(request.getNickname());
+        card.setCreditLimit(request.getCreditLimit());
+        card.setCutOffDay(request.getCutOffDay());
+        card.setPaymentDueDay(request.getPaymentDueDay());
+
+        return creditCardMapper.toResponse(creditCardRepository.save(card));
+    }
+
+    @Override
+    @Transactional
+    public void delete(String userId, String cardId) {
+        CreditCard card = findCardBelongingToUser(userId, cardId);
+        card.setActive(false);
+        creditCardRepository.save(card);
+    }
+
+    @Override
+    public List<CreditCardResponse> getOrderedByUtilization(String userId) {
+        return creditCardMapper.toResponseList(
+                creditCardRepository.findAllByUserIdOrderByUtilizationAsc(userId)
+        );
+    }
+
+    // Helper — verifica que la tarjeta existe Y pertenece al usuario
+    private CreditCard findCardBelongingToUser(String userId, String cardId) {
+        return creditCardRepository.findByIdAndUserId(cardId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("CreditCard", cardId));
+    }
+}
