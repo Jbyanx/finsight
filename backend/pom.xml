@@ -15,6 +15,7 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<lombok.version>1.18.46</lombok.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 	</properties>
@@ -157,12 +158,17 @@
 					<execution>
 						<id>report</id>
 						<phase>verify</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
+						<goals><goal>report</goal></goals>
+						<configuration>
+							<excludes>
+								<exclude>**/FinsightApplication.class</exclude>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/config/**</exclude>
+								<exclude>**/*MapperImpl.*</exclude>
+								<exclude>**/shared/exception/ErrorResponse.*</exclude>
+							</excludes>
+						</configuration>
 					</execution>
-					<!-- Coverage check disabled during Phase 2 development
-     					Will be re-enabled after Phase 2 test suite is complete -->
 					<execution>
 						<id>check</id>
 						<phase>verify</phase>
@@ -182,6 +188,13 @@
 									</limits>
 								</rule>
 							</rules>
+							<excludes>
+								<exclude>**/FinsightApplication.class</exclude>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/config/**</exclude>
+								<exclude>**/*MapperImpl.*</exclude>          <!-- generado por MapStruct, SOURCE retention, no lo pilla @Generated -->
+								<exclude>**/shared/exception/ErrorResponse.*</exclude>
+							</excludes>
 						</configuration>
 					</execution>
 
