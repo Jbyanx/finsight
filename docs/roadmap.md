@@ -46,34 +46,31 @@
 
 ---
 
-## Fase 3 — Bot de Telegram
+
+## Fase 3 — Bot de Telegram + IA
 - [ ] Setup del bot con BotFather
-- [ ] Integración Spring Boot + Telegram API
-- [ ] Autenticación del usuario via Telegram
+- [ ] Integración Spring Boot + Telegram API (telegrambots-spring-boot-starter)
+- [ ] Vinculación de cuenta — TelegramLink + LinkCode (autenticación sin login repetido)
+- [ ] Setup Spring AI + Gemini
+- [ ] Function calling — tools que mapean a los services existentes
+- [ ] Contexto financiero del usuario como prompt
 - [ ] Comando: registrar transacción por mensaje natural
+- [ ] Comando: registrar ingreso por mensaje natural
 - [ ] Comando: registrar factura recurrente por mensaje natural
-- [ ] Comando: consultar estado de tarjeta
+- [ ] Comando: pagar deuda por mensaje natural
+- [ ] Comando: consultar estado de tarjeta ("¿con qué tarjeta pago hoy?")
 - [ ] Comando: crear cuenta o bolsillo
 - [ ] Comando: consultar resumen financiero
-- [ ] Comando: registrar ingreso
-- [ ] Tests del bot
-
----
-
-## Fase 4 — Spring AI + Gemini
-- [ ] Setup Spring AI
-- [ ] Integración con Gemini API
-- [ ] Contexto financiero completo del usuario como prompt
-- [ ] "¿Con qué tarjeta pago hoy?" → respuesta inteligente
 - [ ] Resumen mensual generado por IA
 - [ ] Recomendaciones pre-corte automáticas
 - [ ] Alertas inteligentes de facturas próximas
 - [ ] Historial de conversaciones en MongoDB
-- [ ] Tests de integración con IA
+- [ ] Tests del bot + tests de integración con IA
+- [ ] Suite de tests Fase 3 (mínimo 0.50 coverage)
 
 ---
 
-## Fase 5 — React PWA
+## Fase 4 — React PWA
 - [ ] Setup React + Vite
 - [ ] Autenticación con Google + formulario propio
 - [ ] Dashboard — estado financiero en tiempo real
@@ -89,7 +86,7 @@
 
 ---
 
-## Fase 6 — Polish y producción
+## Fase 5 — Polish y producción
 - [ ] Liquibase para migraciones en producción
 - [ ] GitHub Actions CD (deploy automático en merge a main)
 - [ ] Deploy backend en Railway
@@ -104,7 +101,7 @@
 
 ---
 
-## Fase 7 — Asistente financiero inteligente
+## Fase 6 — Asistente financiero inteligente
 - [ ] Registro de gastos operativos asociados a fuentes de ingreso
 - [ ] Cálculo de ingreso neto real por turno/semana/mes
 - [ ] Recomendaciones de compras inteligentes según contexto actual
