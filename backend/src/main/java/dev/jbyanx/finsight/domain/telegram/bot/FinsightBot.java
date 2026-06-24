@@ -2,11 +2,6 @@ package dev.jbyanx.finsight.domain.telegram.bot;
 
 import dev.jbyanx.finsight.domain.telegram.bot.command.CommandDispatcher;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
-import org.telegram.telegrambots.longpolling.starter.SpringLongPollingBot;
-import org.telegram.telegrambots.longpolling.interfaces.LongPollingUpdateConsumer;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -15,44 +10,31 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 /**
- * Bot de Telegram en modo long-polling (telegrambots 10.x).
+ * Consumidor de updates de Telegram. Recibe mensajes y delega al
+ * {@link CommandDispatcher}.
  *
- * Responsabilidad única: recibir updates y delegar al {@link CommandDispatcher}.
- * No conoce comandos concretos — eso vive en los CommandHandler.
+ * IMPORTANTE: esta clase ya NO implementa SpringLongPollingBot ni es un @Component.
+ * El registro contra Telegram lo hace {@link TelegramBotRegistrar} de forma manual
+ * y tolerante a fallos, para que un token inválido o Telegram caído NO tumbe el
+ * arranque del backend (el bot es un cliente opcional del sistema).
  *
- * El starter registra este bean automáticamente al arrancar; no hace falta
- * registro manual.
+ * La instancia la crea TelegramBotRegistrar, no Spring directamente.
  */
 @Slf4j
-@Component
-@ConditionalOnProperty(name = "telegram.bot.token", matchIfMissing = false)
-public class FinsightBot implements SpringLongPollingBot, LongPollingSingleThreadUpdateConsumer {
+public class FinsightBot implements LongPollingSingleThreadUpdateConsumer {
 
-    private final String botToken;
     private final TelegramClient telegramClient;
     private final CommandDispatcher dispatcher;
 
-    public FinsightBot(@Value("${telegram.bot.token}") String botToken,
-                       CommandDispatcher dispatcher) {
-        this.botToken = botToken;
+    public FinsightBot(String botToken, CommandDispatcher dispatcher) {
         this.telegramClient = new OkHttpTelegramClient(botToken);
         this.dispatcher = dispatcher;
     }
 
     @Override
-    public String getBotToken() {
-        return botToken;
-    }
-
-    @Override
-    public LongPollingUpdateConsumer getUpdatesConsumer() {
-        return this;
-    }
-
-    @Override
     public void consume(Update update) {
         if (!update.hasMessage() || !update.getMessage().hasText()) {
-            return; // ignoramos por ahora lo que no sea texto
+            return; // por ahora ignoramos lo que no sea texto
         }
 
         long chatId = update.getMessage().getChatId();
