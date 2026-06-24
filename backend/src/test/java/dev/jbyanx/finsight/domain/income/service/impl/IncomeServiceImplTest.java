@@ -29,8 +29,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -330,6 +335,155 @@ class IncomeServiceImplTest {
 
         assertFalse(expense.isActive());
         verify(operationalExpenseRepository).save(expense);
+    }
+
+    // ---------- listados de fuentes / gastos ----------
+
+    @Test
+    void getAllSources_ReturnsMappedList() {
+        when(incomeSourceRepository.findAllByUserIdAndActiveTrue("user-1"))
+                .thenReturn(List.of(mockSource));
+        when(incomeMapper.toSourceResponseList(List.of(mockSource)))
+                .thenReturn(List.of(IncomeSourceResponse.builder().build()));
+
+        assertEquals(1, incomeService.getAllSources("user-1").size());
+        verify(incomeSourceRepository).findAllByUserIdAndActiveTrue("user-1");
+    }
+
+    @Test
+    void getAllExpenses_ReturnsMappedList() {
+        OperationalExpense expense = OperationalExpense.builder()
+                .id("exp-1").user(mockUser).description("Gasolina")
+                .estimatedAmount(new BigDecimal("20000"))
+                .frequency(IncomeFrequency.PER_SHIFT).active(true).build();
+
+        when(operationalExpenseRepository.findAllByUserIdAndActiveTrue("user-1"))
+                .thenReturn(List.of(expense));
+        when(incomeMapper.toExpenseResponseList(List.of(expense)))
+                .thenReturn(List.of(OperationalExpenseResponse.builder().build()));
+
+        assertEquals(1, incomeService.getAllExpenses("user-1").size());
+        verify(operationalExpenseRepository).findAllByUserIdAndActiveTrue("user-1");
+    }
+
+    // ---------- historial paginado ----------
+
+    @Test
+    void getIncomeHistory_ReturnsMappedPage() {
+        IncomeEntry entry = IncomeEntry.builder()
+                .id("e-1").user(mockUser)
+                .amount(new BigDecimal("60000"))
+                .destinationType(DestinationType.CASH).build();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<IncomeEntry> page = new PageImpl<>(List.of(entry), pageable, 1);
+
+        when(incomeEntryRepository.findAllByUserIdOrderByReceivedAtDesc("user-1", pageable))
+                .thenReturn(page);
+        when(incomeMapper.toEntryResponse(entry))
+                .thenReturn(IncomeEntryResponse.builder().build());
+
+        Page<IncomeEntryResponse> result = incomeService.getIncomeHistory("user-1", pageable);
+
+        assertEquals(1, result.getTotalElements());
+        verify(incomeEntryRepository)
+                .findAllByUserIdOrderByReceivedAtDesc("user-1", pageable);
+    }
+
+    // ---------- updateSource (reemplazo completo) ----------
+
+    @Test
+    void updateSource_Success_OverwritesFields() {
+        IncomeSourceRequest req = new IncomeSourceRequest();
+        ReflectionTestUtils.setField(req, "description", "Mesada");
+        ReflectionTestUtils.setField(req, "type", IncomeType.FIXED);
+        ReflectionTestUtils.setField(req, "estimatedAmount", new BigDecimal("200000"));
+        ReflectionTestUtils.setField(req, "frequency", IncomeFrequency.MONTHLY);
+
+        when(incomeSourceRepository.findByIdAndUserId("src-1", "user-1"))
+                .thenReturn(Optional.of(mockSource));
+        when(incomeSourceRepository.save(mockSource)).thenReturn(mockSource);
+        when(incomeMapper.toSourceResponse(mockSource))
+                .thenReturn(IncomeSourceResponse.builder().build());
+
+        incomeService.updateSource("user-1", "src-1", req);
+
+        assertEquals("Mesada", mockSource.getDescription());
+        assertEquals(IncomeType.FIXED, mockSource.getType());
+        assertEquals(new BigDecimal("200000"), mockSource.getEstimatedAmount());
+        assertEquals(IncomeFrequency.MONTHLY, mockSource.getFrequency());
+    }
+
+    // ---------- updateExpense (reemplazo completo) ----------
+
+    @Test
+    void updateExpense_Success_OverwritesFields() {
+        OperationalExpense expense = OperationalExpense.builder()
+                .id("exp-1").user(mockUser).description("Gasolina")
+                .estimatedAmount(new BigDecimal("20000"))
+                .frequency(IncomeFrequency.PER_SHIFT).active(true).build();
+
+        OperationalExpenseRequest req = new OperationalExpenseRequest();
+        ReflectionTestUtils.setField(req, "description", "Merienda");
+        ReflectionTestUtils.setField(req, "frequency", IncomeFrequency.WEEKLY);
+        ReflectionTestUtils.setField(req, "estimatedAmount", new BigDecimal("3000"));
+
+        when(operationalExpenseRepository.findByIdAndUserId("exp-1", "user-1"))
+                .thenReturn(Optional.of(expense));
+        when(operationalExpenseRepository.save(expense)).thenReturn(expense);
+        when(incomeMapper.toExpenseResponse(expense))
+                .thenReturn(OperationalExpenseResponse.builder().build());
+
+        incomeService.updateExpense("user-1", "exp-1", req);
+
+        assertEquals("Merienda", expense.getDescription());
+        assertEquals(IncomeFrequency.WEEKLY, expense.getFrequency());
+        assertEquals(new BigDecimal("3000"), expense.getEstimatedAmount());
+    }
+
+    @Test
+    void updateExpense_NotFound_ThrowsException() {
+        when(operationalExpenseRepository.findByIdAndUserId("exp-bad", "user-1"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> incomeService.updateExpense("user-1", "exp-bad", expenseRequest()));
+        verify(operationalExpenseRepository, never()).save(any());
+    }
+
+    // ---------- patchExpense (parcial) ----------
+
+    @Test
+    void patchExpense_OnlyProvidedFields_AreUpdated() {
+        OperationalExpense expense = OperationalExpense.builder()
+                .id("exp-1").user(mockUser).description("Gasolina")
+                .estimatedAmount(new BigDecimal("20000"))
+                .frequency(IncomeFrequency.PER_SHIFT).active(true).build();
+
+        OperationalExpensePatchRequest req = new OperationalExpensePatchRequest();
+        ReflectionTestUtils.setField(req, "estimatedAmount", new BigDecimal("25000"));
+        // description y frequency quedan null → no deben cambiar
+
+        when(operationalExpenseRepository.findByIdAndUserId("exp-1", "user-1"))
+                .thenReturn(Optional.of(expense));
+        when(operationalExpenseRepository.save(expense)).thenReturn(expense);
+        when(incomeMapper.toExpenseResponse(expense))
+                .thenReturn(OperationalExpenseResponse.builder().build());
+
+        incomeService.patchExpense("user-1", "exp-1", req);
+
+        assertEquals(new BigDecimal("25000"), expense.getEstimatedAmount());
+        assertEquals("Gasolina", expense.getDescription());          // intacto
+        assertEquals(IncomeFrequency.PER_SHIFT, expense.getFrequency()); // intacto
+    }
+
+    @Test
+    void patchExpense_NotFound_ThrowsException() {
+        when(operationalExpenseRepository.findByIdAndUserId("exp-bad", "user-1"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> incomeService.patchExpense("user-1", "exp-bad",
+                        new OperationalExpensePatchRequest()));
     }
 
     // ---------- helpers ----------
