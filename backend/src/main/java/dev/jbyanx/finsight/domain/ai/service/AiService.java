@@ -1,18 +1,21 @@
 package dev.jbyanx.finsight.domain.ai.service;
 
 /**
- * Servicio mínimo de IA. Por ahora solo manda un prompt y devuelve el texto,
- * para verificar que la conexión con Gemini funciona (smoke test del issue #50).
- *
- * En issues siguientes este servicio crecerá: contexto financiero, tools, memoria.
+ * Servicio de IA. Manda el mensaje del usuario al modelo con las tools
+ * disponibles, y devuelve la respuesta en lenguaje natural.
  */
 public interface AiService {
 
     /**
-     * Manda un prompt simple al modelo y devuelve la respuesta en texto plano.
+     * Procesa un mensaje en lenguaje natural para un usuario concreto.
      *
-     * @param prompt el mensaje del usuario
-     * @return la respuesta del modelo
+     * El userId se inyecta en el ToolContext (canal del servidor), de modo que
+     * las tools puedan resolver "de quién" son los datos sin que el modelo lo
+     * controle. NUNCA viene del mensaje.
+     *
+     * @param userId id del usuario autenticado (resuelto desde el chatId)
+     * @param message texto en lenguaje natural del usuario
+     * @return respuesta del modelo
      */
-    String ask(String prompt);
+    String chat(String userId, String message);
 }
