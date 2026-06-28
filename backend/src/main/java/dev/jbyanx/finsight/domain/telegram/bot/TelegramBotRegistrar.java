@@ -1,6 +1,5 @@
 package dev.jbyanx.finsight.domain.telegram.bot;
 
-import dev.jbyanx.finsight.domain.telegram.bot.command.CommandDispatcher;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,16 +10,8 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 
 /**
- * Registra el bot contra Telegram de forma MANUAL y TOLERANTE A FALLOS.
- *
- * Por qué no usamos el autoregistro del starter (SpringLongPollingBot):
- * ese camino deja que el `telegramBotInitializer` registre el bot durante el
- * arranque del contexto, y si Telegram responde error (404 por token inválido,
- * red caída, etc.) la excepción PROPAGA y tumba todo el ApplicationContext.
- * El bot es un cliente opcional: no puede impedir que arranque la API/PWA.
- *
- * Aquí registramos en ApplicationReadyEvent (contexto ya levantado) y envolvemos
- * en try/catch: si falla, log de warning y la app sigue viva, sin bot.
+ * Registra el bot contra Telegram de forma MANUAL y TOLERANTE A FALLOS,
+ * para que un token inválido o Telegram caído NO tumben el arranque del backend.
  *
  * Se activa solo si telegram.bot.enabled=true (en test está en false).
  */
@@ -30,13 +21,13 @@ import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 public class TelegramBotRegistrar {
 
     private final String botToken;
-    private final CommandDispatcher dispatcher;
+    private final MessageRouter messageRouter;
     private TelegramBotsLongPollingApplication botsApplication;
 
     public TelegramBotRegistrar(@Value("${telegram.bot.token:}") String botToken,
-                                CommandDispatcher dispatcher) {
+                                MessageRouter messageRouter) {
         this.botToken = botToken;
-        this.dispatcher = dispatcher;
+        this.messageRouter = messageRouter;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -47,12 +38,11 @@ public class TelegramBotRegistrar {
         }
         try {
             botsApplication = new TelegramBotsLongPollingApplication();
-            botsApplication.registerBot(botToken, new FinsightBot(botToken, dispatcher));
+            botsApplication.registerBot(botToken, new FinsightBot(botToken, messageRouter));
             log.info("Telegram bot registered and running.");
         } catch (Exception e) {
-            // No relanzamos: el backend debe seguir vivo aunque el bot falle.
             log.warn("Telegram bot failed to register ({}). "
-                    + "The backend will run without the bot.", e.getClass().getSimpleName());
+                    + "The backend will run without the bot.", e.getMessage());
             closeQuietly();
         }
     }

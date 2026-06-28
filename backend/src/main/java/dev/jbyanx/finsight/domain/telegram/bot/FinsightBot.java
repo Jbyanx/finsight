@@ -1,6 +1,5 @@
 package dev.jbyanx.finsight.domain.telegram.bot;
 
-import dev.jbyanx.finsight.domain.telegram.bot.command.CommandDispatcher;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
@@ -11,24 +10,21 @@ import org.telegram.telegrambots.meta.generics.TelegramClient;
 
 /**
  * Consumidor de updates de Telegram. Recibe mensajes y delega al
- * {@link CommandDispatcher}.
+ * {@link MessageRouter}, que decide comando vs lenguaje natural.
  *
- * IMPORTANTE: esta clase ya NO implementa SpringLongPollingBot ni es un @Component.
- * El registro contra Telegram lo hace {@link TelegramBotRegistrar} de forma manual
- * y tolerante a fallos, para que un token inválido o Telegram caído NO tumbe el
- * arranque del backend (el bot es un cliente opcional del sistema).
- *
- * La instancia la crea TelegramBotRegistrar, no Spring directamente.
+ * Sigue siendo "tonto": no conoce comandos ni IA, solo recibe, delega y responde.
+ * El registro contra Telegram lo hace {@link TelegramBotRegistrar} de forma
+ * tolerante a fallos.
  */
 @Slf4j
 public class FinsightBot implements LongPollingSingleThreadUpdateConsumer {
 
     private final TelegramClient telegramClient;
-    private final CommandDispatcher dispatcher;
+    private final MessageRouter messageRouter;
 
-    public FinsightBot(String botToken, CommandDispatcher dispatcher) {
+    public FinsightBot(String botToken, MessageRouter messageRouter) {
         this.telegramClient = new OkHttpTelegramClient(botToken);
-        this.dispatcher = dispatcher;
+        this.messageRouter = messageRouter;
     }
 
     @Override
@@ -42,9 +38,9 @@ public class FinsightBot implements LongPollingSingleThreadUpdateConsumer {
 
         String response;
         try {
-            response = dispatcher.dispatch(chatId, text);
+            response = messageRouter.route(chatId, text);
         } catch (Exception e) {
-            log.error("Error handling update from chat {}", chatId, e);
+            log.error("Error routing update from chat {}", chatId, e);
             response = "Ups, algo salió mal procesando tu mensaje. Intenta de nuevo.";
         }
 
