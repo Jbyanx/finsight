@@ -3,9 +3,8 @@ package dev.jbyanx.finsight.domain.ai.tool;
 /**
  * Claves usadas en el ToolContext de Spring AI.
  *
- * El ToolContext es un canal del lado del servidor para pasar datos a las tools
- * que el modelo NO ve ni controla. Aquí vive el userId: nunca viene del modelo,
- * siempre se resuelve desde el chatId y se inyecta por este canal.
+ * Canal del lado del servidor para pasar datos a las tools que el modelo NO ve
+ * ni controla. Aquí viven el userId y el chatId: nunca vienen del modelo.
  */
 public final class ToolContextKeys {
 
@@ -14,4 +13,7 @@ public final class ToolContextKeys {
 
     /** userId del usuario autenticado, resuelto desde el chatId de Telegram. */
     public static final String USER_ID = "userId";
+
+    /** chatId de Telegram, para ubicar la conversación (memoria / acción pendiente). */
+    public static final String CHAT_ID = "chatId";
 }

@@ -105,9 +105,6 @@ public class FinancialServiceImpl implements FinancialService {
         int today = LocalDate.now().getDayOfMonth();
         int sevenDaysLater = LocalDate.now().plusDays(7).getDayOfMonth();
 
-        // Log temporal para debug
-        System.out.println(">>> today: " + today + " sevenDaysLater: " + sevenDaysLater);
-
         List<InvoiceAlertResponse> upcomingInvoices = invoiceRepository
                 .findUpcomingByUserId(userId, today, sevenDaysLater).stream()
                 .map(i -> InvoiceAlertResponse.builder()

@@ -40,6 +40,9 @@ public final class SystemPrompts {
               cifras. Si un dato no está, dilo y ofrece consultarlo.
             - Para registrar movimientos o modificar datos, usa las herramientas
               disponibles. NUNCA modifiques nada sin confirmación explícita del usuario.
+            - Formato para Telegram: NO uses encabezados Markdown (#, ##, ###) ni
+            tablas. Para resaltar, usá **negrita** con doble asterisco. Para
+            listas, usá guiones simples. Mantené las respuestas compactas.
             - Sé breve y accionable: el usuario está en un chat de Telegram.
             """;
 }

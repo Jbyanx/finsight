@@ -8,16 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * Decide qué hacer con cada mensaje de texto entrante:
- *
- *   - Empieza con "/"  -> es un comando, va al CommandDispatcher (como antes).
- *   - No empieza con "/" -> es lenguaje natural -> al AiService (Jarvis).
- *
- * Para el lenguaje natural aplica el bloqueo de vinculación: si el chat no está
- * vinculado, no llama a la IA (no tendríamos userId con quién consultar) y pide
- * vincular. El userId SIEMPRE se resuelve desde el chatId, nunca del mensaje.
- *
- * Mantiene al FinsightBot tonto: el bot solo delega aquí.
+ * Decide comando vs lenguaje natural (para texto) y maneja callbacks de botones.
+ * El userId SIEMPRE se resuelve desde el chatId.
  */
 @Slf4j
 @Component
@@ -28,38 +20,49 @@ public class MessageRouter {
     private final TelegramLinkService telegramLinkService;
     private final AiService aiService;
 
-    public String route(long chatId, String text) {
+    public BotReply route(long chatId, String text) {
         if (text == null || text.isBlank()) {
-            return "No te entendí. Escribe /help para ver qué puedo hacer.";
+            return BotReply.text("No te entendí. Escribí /help para ver qué puedo hacer.");
         }
 
         String trimmed = text.strip();
 
-        // Comandos -> dispatcher (este ya maneja su propio gate de vinculación)
         if (trimmed.startsWith("/")) {
-            return commandDispatcher.dispatch(chatId, trimmed);
+            return BotReply.text(commandDispatcher.dispatch(chatId, trimmed));
         }
 
-        // Lenguaje natural -> IA, pero solo si el chat está vinculado
         String userId = telegramLinkService.resolveUserId(chatId);
         if (userId == null) {
-            return notLinked();
+            return BotReply.text(notLinked());
         }
 
         try {
-            return aiService.chat(userId, trimmed);
+            return aiService.chat(String.valueOf(chatId), userId, trimmed);
         } catch (Exception e) {
             log.error("AI chat failed for chat {}", chatId, e);
-            return "Estoy teniendo problemas para procesar eso ahora mismo. "
-                    + "Intenta de nuevo en un momento.";
+            return BotReply.text("Estoy teniendo problemas para procesar eso ahora mismo. "
+                    + "Intentá de nuevo en un momento.");
+        }
+    }
+
+    public BotReply routeCallback(long chatId, String callbackData) {
+        String userId = telegramLinkService.resolveUserId(chatId);
+        if (userId == null) {
+            return BotReply.text("Tu sesión no está vinculada. Enviá /start TU_CODIGO.");
+        }
+        try {
+            return aiService.handleConfirmation(String.valueOf(chatId), userId, callbackData);
+        } catch (Exception e) {
+            log.error("Callback handling failed for chat {}", chatId, e);
+            return BotReply.text("No pude completar la acción. Intentá de nuevo.");
         }
     }
 
     private String notLinked() {
         return """
-                Para conversar conmigo primero vincula tu cuenta. 🔗
+                Para conversar conmigo primero vinculá tu cuenta. 🔗
 
-                Abre Finsight, generá tu código y enviame:
+                Abrí Finsight, generá tu código y enviame:
                 /start TU_CODIGO""";
     }
 }
