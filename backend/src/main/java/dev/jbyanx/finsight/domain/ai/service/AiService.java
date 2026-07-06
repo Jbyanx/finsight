@@ -1,21 +1,22 @@
 package dev.jbyanx.finsight.domain.ai.service;
 
+import dev.jbyanx.finsight.domain.telegram.bot.BotReply;
+
 /**
- * Servicio de IA. Manda el mensaje del usuario al modelo con las tools
- * disponibles, y devuelve la respuesta en lenguaje natural.
+ * Servicio de IA con memoria y confirmación por botones.
  */
 public interface AiService {
 
     /**
-     * Procesa un mensaje en lenguaje natural para un usuario concreto.
-     *
-     * El userId se inyecta en el ToolContext (canal del servidor), de modo que
-     * las tools puedan resolver "de quién" son los datos sin que el modelo lo
-     * controle. NUNCA viene del mensaje.
-     *
-     * @param userId id del usuario autenticado (resuelto desde el chatId)
-     * @param message texto en lenguaje natural del usuario
-     * @return respuesta del modelo
+     * Procesa un mensaje de texto del usuario. Si el modelo prepara una mutación
+     * (deja una acción pendiente), la respuesta vuelve con withConfirmButtons=true
+     * para que el bot muestre los botones Confirmar/Cancelar.
      */
-    String chat(String userId, String message);
+    BotReply chat(String chatId, String userId, String message);
+
+    /**
+     * Procesa el toque de un botón de confirmación (confirm/cancel). Ejecuta o
+     * cancela la acción pendiente (en CÓDIGO) y devuelve el resultado.
+     */
+    BotReply handleConfirmation(String chatId, String userId, String callbackData);
 }
