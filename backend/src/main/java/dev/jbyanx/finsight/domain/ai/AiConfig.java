@@ -1,6 +1,7 @@
 package dev.jbyanx.finsight.domain.ai;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,6 +23,7 @@ public class AiConfig {
      * que el starter ya configuró con el ChatModel de Gemini.
      */
     @Bean
+    @ConditionalOnProperty(name = "finsight.ai.enabled", havingValue = "true", matchIfMissing = true)
     public ChatClient chatClient(ChatClient.Builder builder) {
         return builder.build();
     }
