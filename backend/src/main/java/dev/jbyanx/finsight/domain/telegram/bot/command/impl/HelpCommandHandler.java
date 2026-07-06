@@ -23,12 +23,26 @@ public class HelpCommandHandler implements CommandHandler {
     @Override
     public String handle(long chatId, String args) {
         return """
-                Esto es lo que puedo hacer por ahora:
+                *Soy Finsight, tu asistente financiero.* 🪙
 
-                /start — iniciar y vincular tu cuenta (/start TU_CODIGO)
+                Háblame en lenguaje natural, como a un asesor. Por ejemplo:
+
+                *Consultar:*
+                • "¿cuánto tengo en efectivo?"
+                • "¿cuáles son mis tarjetas?"
+                • "¿con qué tarjeta pago hoy?"
+                • "¿cuánto debo?"
+                • "¿cómo estoy financieramente?"
+
+                *Registrar movimientos:*
+                • "pagué 250 mil de la moto"
+                (te muestro la consecuencia y confirmás con un botón)
+
+                *Comandos:*
+                /start — vincular tu cuenta (/start TU_CODIGO)
                 /help — mostrar esta ayuda
 
-                Muy pronto vas a poder registrar gastos, consultar tus tarjetas
-                y pedir recomendaciones, todo en lenguaje natural.""";
+                Te doy recomendaciones para cuidar tu historial crediticio,
+                tu utilización y tus metas de ahorro. ¡Pregúntame lo que sea!""";
     }
 }
