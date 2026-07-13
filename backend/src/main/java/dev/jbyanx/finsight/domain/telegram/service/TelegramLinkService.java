@@ -11,5 +11,13 @@ public interface TelegramLinkService {
 
     String resolveUserId(Long chatId); // null si no está vinculado
 
+    /** Desvincula desde la web (el usuario ya está autenticado). */
     void unlink(String userId);
+
+    /**
+     * Desvincula desde el bot, donde solo conocemos el chatId.
+     *
+     * @return true si había un vínculo y se eliminó; false si no había nada.
+     */
+    boolean unlinkByChatId(Long chatId);
 }

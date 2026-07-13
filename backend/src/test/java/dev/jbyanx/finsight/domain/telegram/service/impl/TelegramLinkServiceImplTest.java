@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.telegram.service.impl;
 
+import dev.jbyanx.finsight.domain.ai.memory.ConversationService;
 import dev.jbyanx.finsight.domain.auth.entity.User;
 import dev.jbyanx.finsight.domain.auth.repository.UserRepository;
 import dev.jbyanx.finsight.domain.telegram.dto.LinkCodeResponse;
@@ -34,6 +35,8 @@ class TelegramLinkServiceImplTest {
     private LinkCodeRepository linkCodeRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ConversationService conversationService;
 
     @InjectMocks
     private TelegramLinkServiceImpl telegramLinkService;
@@ -48,6 +51,23 @@ class TelegramLinkServiceImplTest {
         ReflectionTestUtils.setField(telegramLinkService, "CHARS",
                 "ABCDEFGHJKLMNPQRSTUVWXYZ23456789");
         ReflectionTestUtils.setField(telegramLinkService, "expirationMinutes", 5);
+    }
+
+    /** Código válido, sin usar y sin vencer. */
+    private LinkCode validCode(String code) {
+        return LinkCode.builder()
+                .code(code)
+                .user(mockUser)
+                .expiresAt(LocalDateTime.now().plusMinutes(5))
+                .used(false)
+                .build();
+    }
+
+    private TelegramLink linkTo(long chatId) {
+        return TelegramLink.builder()
+                .user(mockUser)
+                .chatId(chatId)
+                .build();
     }
 
     // ---------- generateLinkCode ----------
@@ -78,24 +98,50 @@ class TelegramLinkServiceImplTest {
 
     @Test
     void linkAccount_Success() {
-        LinkCode validCode = LinkCode.builder()
-                .code("ABC234")
-                .user(mockUser)
-                .expiresAt(LocalDateTime.now().plusMinutes(5))
-                .used(false)
-                .build();
+        LinkCode code = validCode("ABC234");
 
         when(linkCodeRepository.findByCodeAndUsedFalse("ABC234"))
-                .thenReturn(Optional.of(validCode));
+                .thenReturn(Optional.of(code));
         when(telegramLinkRepository.existsByChatId(12345L)).thenReturn(false);
+        when(telegramLinkRepository.findByUserId("user-1")).thenReturn(Optional.empty());
 
         TelegramLinkResponse response = telegramLinkService.linkAccount("ABC234", 12345L);
 
         assertTrue(response.isLinked());
         assertEquals("Jabes", response.getUserName());
-        assertTrue(validCode.isUsed()); // el código quedó consumido
-        verify(linkCodeRepository).save(validCode);
+        assertTrue(code.isUsed()); // el código quedó consumido
+        verify(linkCodeRepository).save(code);
         verify(telegramLinkRepository).save(any(TelegramLink.class));
+    }
+
+    @Test
+    void linkAccount_PurgesStaleConversationFromPreviousOwner() {
+        // El chat 123 pudo haber pertenecido a OTRA cuenta antes. Su historial
+        // financiero no debe filtrarse a la cuenta que se vincula ahora.
+        when(linkCodeRepository.findByCodeAndUsedFalse("ABC234"))
+                .thenReturn(Optional.of(validCode("ABC234")));
+        when(telegramLinkRepository.existsByChatId(123L)).thenReturn(false);
+        when(telegramLinkRepository.findByUserId("user-1")).thenReturn(Optional.empty());
+
+        telegramLinkService.linkAccount("ABC234", 123L);
+
+        verify(conversationService).deleteByChatId("123");
+    }
+
+    @Test
+    void linkAccount_WhenUserAlreadyLinked_ThrowsInsteadOfConstraintViolation() {
+        // user_id es UNIQUE en la tabla: sin esta validación, vincular un segundo
+        // chat al mismo usuario reventaba con un 500 por violación de constraint.
+        when(linkCodeRepository.findByCodeAndUsedFalse("ABC234"))
+                .thenReturn(Optional.of(validCode("ABC234")));
+        when(telegramLinkRepository.existsByChatId(456L)).thenReturn(false);
+        when(telegramLinkRepository.findByUserId("user-1"))
+                .thenReturn(Optional.of(linkTo(111L)));
+
+        assertThrows(UnauthorizedException.class,
+                () -> telegramLinkService.linkAccount("ABC234", 456L));
+
+        verify(telegramLinkRepository, never()).save(any());
     }
 
     @Test
@@ -129,15 +175,8 @@ class TelegramLinkServiceImplTest {
 
     @Test
     void linkAccount_ChatAlreadyLinked_ThrowsException() {
-        LinkCode validCode = LinkCode.builder()
-                .code("OKK234")
-                .user(mockUser)
-                .expiresAt(LocalDateTime.now().plusMinutes(5))
-                .used(false)
-                .build();
-
         when(linkCodeRepository.findByCodeAndUsedFalse("OKK234"))
-                .thenReturn(Optional.of(validCode));
+                .thenReturn(Optional.of(validCode("OKK234")));
         when(telegramLinkRepository.existsByChatId(999L)).thenReturn(true);
 
         assertThrows(UnauthorizedException.class,
@@ -152,12 +191,8 @@ class TelegramLinkServiceImplTest {
 
     @Test
     void resolveUserId_Linked_ReturnsUserId() {
-        TelegramLink link = TelegramLink.builder()
-                .user(mockUser)
-                .chatId(111L)
-                .build();
-
-        when(telegramLinkRepository.findByChatId(111L)).thenReturn(Optional.of(link));
+        when(telegramLinkRepository.findByChatId(111L))
+                .thenReturn(Optional.of(linkTo(111L)));
 
         assertEquals("user-1", telegramLinkService.resolveUserId(111L));
     }
@@ -169,20 +204,18 @@ class TelegramLinkServiceImplTest {
         assertNull(telegramLinkService.resolveUserId(222L));
     }
 
-    // ---------- unlink ----------
+    // ---------- unlink (web) ----------
 
     @Test
-    void unlink_Exists_DeletesLink() {
-        TelegramLink link = TelegramLink.builder()
-                .user(mockUser)
-                .chatId(111L)
-                .build();
-
+    void unlink_Exists_DeletesLinkAndPurgesConversation() {
+        TelegramLink link = linkTo(111L);
         when(telegramLinkRepository.findByUserId("user-1")).thenReturn(Optional.of(link));
 
         telegramLinkService.unlink("user-1");
 
         verify(telegramLinkRepository).delete(link);
+        // El historial de Mongo NO sobrevive a la desvinculación.
+        verify(conversationService).deleteByChatId("111");
     }
 
     @Test
@@ -192,5 +225,30 @@ class TelegramLinkServiceImplTest {
         telegramLinkService.unlink("user-x");
 
         verify(telegramLinkRepository, never()).delete(any());
+        verify(conversationService, never()).deleteByChatId(any());
+    }
+
+    // ---------- unlinkByChatId (bot) ----------
+
+    @Test
+    void unlinkByChatId_WhenLinked_DeletesLinkAndPurgesConversation() {
+        TelegramLink link = linkTo(123L);
+        when(telegramLinkRepository.findByChatId(123L)).thenReturn(Optional.of(link));
+
+        boolean result = telegramLinkService.unlinkByChatId(123L);
+
+        assertTrue(result);
+        verify(telegramLinkRepository).delete(link);
+        verify(conversationService).deleteByChatId("123");
+    }
+
+    @Test
+    void unlinkByChatId_WhenNotLinked_ReturnsFalseAndTouchesNothing() {
+        when(telegramLinkRepository.findByChatId(999L)).thenReturn(Optional.empty());
+
+        assertFalse(telegramLinkService.unlinkByChatId(999L));
+
+        verify(telegramLinkRepository, never()).delete(any());
+        verify(conversationService, never()).deleteByChatId(any());
     }
 }

@@ -46,6 +46,7 @@ public class HelpCommandHandler implements CommandHandler {
 
                 **Comandos:**
                 /start — vincular tu cuenta (/start TU_CODIGO)
+                /unlink — desvincular esta cuenta
                 /help — mostrar esta ayuda
 
                 Te doy recomendaciones para cuidar tu historial crediticio,

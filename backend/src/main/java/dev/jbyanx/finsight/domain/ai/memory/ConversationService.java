@@ -47,4 +47,17 @@ public class ConversationService {
         conv.setUpdatedAt(Instant.now());
         repository.save(conv);
     }
+
+    /**
+     * Borra la conversación de un chat: historial + acción pendiente.
+     *
+     * Se llama al desvincular y al vincular. En ambos casos el chat cambia de
+     * dueño (o deja de tenerlo) y el estado anterior NO debe sobrevivir: es
+     * información financiera de otra persona.
+     *
+     * Idempotente: si no existe, no hace nada.
+     */
+    public void deleteByChatId(String chatId) {
+        repository.deleteById(chatId);   // el id de Conversation ES el chatId
+    }
 }
