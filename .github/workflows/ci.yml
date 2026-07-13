@@ -1,20 +1,15 @@
-name: CD
+name: CI
 
-# Despliega a Railway cuando main avanza (merge de un PR ya validado por el CI).
-# El CI corre en PRs contra develop/main; esto corre DESPUÉS del merge.
+# Valida cada PR antes del merge. No despliega nada.
 on:
-  push:
+  pull_request:
     branches:
+      - develop
       - main
-  workflow_dispatch:   # permite disparar un deploy manual desde la UI
-
-concurrency:
-  group: production-deploy
-  cancel-in-progress: false   # nunca cancelar un deploy a medias
 
 jobs:
-  verify:
-    name: Verify before deploy
+  build-and-test:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     services:
@@ -48,7 +43,8 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up Java 21
         uses: actions/setup-java@v4
@@ -57,8 +53,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Red de seguridad: main podría recibir un hotfix directo sin pasar por PR.
-      # Nunca desplegamos algo que no compile y pase la suite.
+      # Con Liquibase activo y ddl-auto=validate, este paso tambien verifica que
+      # las migraciones apliquen sobre una BD limpia y que el schema resultante
+      # valide contra las entidades JPA. Es el escenario de produccion, en cada PR.
       - name: Build and test
         working-directory: backend
         env:
@@ -80,23 +77,16 @@ jobs:
           SCHEDULER_TOKEN_CLEANUP_CRON: 0 0 0 * * *
         run: mvn clean verify
 
-  deploy:
-    name: Deploy to Railway
-    needs: verify          # si la suite falla, NO se despliega
-    runs-on: ubuntu-latest
-    environment: production
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: backend/target/surefire-reports/
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE }} --detach
-
-      # Liquibase corre al arrancar la app y aplica las migraciones pendientes.
-      # Si el schema no valida contra las entidades, el contenedor no levanta y
-      # Railway conserva el despliegue anterior.
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: backend/target/site/jacoco/
