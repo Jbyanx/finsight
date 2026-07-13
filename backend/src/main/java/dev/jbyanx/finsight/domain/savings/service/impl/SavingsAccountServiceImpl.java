@@ -45,11 +45,13 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public SavingsAccountResponse getById(String userId, String accountId) {
         return savingsAccountMapper.toResponse(findAccountBelongingToUser(userId, accountId));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SavingsAccountResponse> getAllByUser(String userId) {
         return savingsAccountMapper.toResponseList(
                 savingsAccountRepository.findAllByUserIdAndActiveTrue(userId)
