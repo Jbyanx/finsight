@@ -17,13 +17,8 @@ import java.math.BigDecimal;
 /**
  * Ejecuta una {@link PendingAction} ya confirmada, contra el service real.
  *
- * SEGURIDAD: esta es la ÚNICA vía por la que una mutación disparada desde el bot
- * llega a la BD, y la invoca el CÓDIGO (ConfirmationHandler) tras detectar una
- * confirmación explícita — NUNCA el modelo. El LLM solo propone (preview); nunca
- * tiene una tool que ejecute directo.
- *
- * Cada type de acción se resuelve acá. Agregar una nueva acción de escritura =
- * un case nuevo + su tool de preview. El patrón de seguridad no cambia.
+ * SEGURIDAD: única vía por la que una mutación del bot llega a la BD, y la invoca
+ * el CÓDIGO (ConfirmationHandler) tras una confirmación explícita — nunca el modelo.
  */
 @Slf4j
 @Component
@@ -36,9 +31,6 @@ public class PendingActionExecutor {
     private final FixedDebtService fixedDebtService;
     private final TransactionService transactionService;
 
-    /**
-     * @return mensaje de resultado para mostrar al usuario tras ejecutar.
-     */
     public String execute(String userId, PendingAction action) {
         return switch (action.getType()) {
             case PAY_DEBT -> payDebt(userId, action);
@@ -51,11 +43,11 @@ public class PendingActionExecutor {
     }
 
     private String payDebt(String userId, PendingAction action) {
-        String debtId = action.param("debtId");
         BigDecimal amount = new BigDecimal(action.param("amount"));
 
         FixedDebtResponse result = fixedDebtService.applyPayment(
-                userId, debtId, DebtPaymentRequest.builder().amount(amount).build());
+                userId, action.param("debtId"),
+                DebtPaymentRequest.builder().amount(amount).build());
 
         if (result.isPaidOff()) {
             return "Listo. Pagaste %s y saldaste por completo la deuda de %s."
@@ -77,10 +69,18 @@ public class PendingActionExecutor {
                 .originType(OriginType.valueOf(action.param("originType")))
                 .creditCardId(action.param("creditCardId"))
                 .savingsAccountId(action.param("savingsAccountId"))
+                .pocketId(action.param("pocketId"))
                 .installments(installmentsRaw != null ? Integer.valueOf(installmentsRaw) : 1)
                 .build();
 
         TransactionResponse tx = transactionService.create(userId, request);
+
+        // Si se pagó con plata ajena, dejarlo explícito en la confirmación.
+        if (tx.isThirdParty()) {
+            return "Listo. Registré \"%s\" por %s con el dinero de %s. No afecta tu patrimonio."
+                    .formatted(tx.getDescription(), Money.format(tx.getAmount()),
+                            tx.getThirdPartyOwnerName());
+        }
 
         String origin = tx.getOriginName() != null ? " con " + tx.getOriginName() : "";
         return "Listo. Registré \"%s\" por %s%s."
