@@ -22,7 +22,7 @@ public class MessageRouter {
 
     public BotReply route(long chatId, String text) {
         if (text == null || text.isBlank()) {
-            return BotReply.text("No te entendí. Escribí /help para ver qué puedo hacer.");
+            return BotReply.text("No te entendí. Escribe /help para ver qué puedo hacer.");
         }
 
         String trimmed = text.strip();
@@ -41,28 +41,28 @@ public class MessageRouter {
         } catch (Exception e) {
             log.error("AI chat failed for chat {}", chatId, e);
             return BotReply.text("Estoy teniendo problemas para procesar eso ahora mismo. "
-                    + "Intentá de nuevo en un momento.");
+                    + "Intenta de nuevo en un momento.");
         }
     }
 
     public BotReply routeCallback(long chatId, String callbackData) {
         String userId = telegramLinkService.resolveUserId(chatId);
         if (userId == null) {
-            return BotReply.text("Tu sesión no está vinculada. Enviá /start TU_CODIGO.");
+            return BotReply.text("Tu sesión no está vinculada. Envía /start TU_CODIGO.");
         }
         try {
             return aiService.handleConfirmation(String.valueOf(chatId), userId, callbackData);
         } catch (Exception e) {
             log.error("Callback handling failed for chat {}", chatId, e);
-            return BotReply.text("No pude completar la acción. Intentá de nuevo.");
+            return BotReply.text("No pude completar la acción. Intenta de nuevo.");
         }
     }
 
     private String notLinked() {
         return """
-                Para conversar conmigo primero vinculá tu cuenta. 🔗
+                Para conversar conmigo primero vincula tu cuenta.
 
-                Abrí Finsight, generá tu código y enviame:
+                Abre Finsight, genera tu código y envíame:
                 /start TU_CODIGO""";
     }
 }
