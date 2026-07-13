@@ -11,10 +11,10 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface SavingsAccountMapper {
 
-    @Mapping(target = "availableBalance",
-            expression = "java(account.getAvailableBalance())")
-    @Mapping(target = "pockets",
-            expression = "java(mapActivePockets(account))")
+    @Mapping(target = "sharedTotal", expression = "java(account.getSharedTotal())")
+    @Mapping(target = "ownBalance", expression = "java(account.getOwnBalance())")
+    @Mapping(target = "availableBalance", expression = "java(account.getAvailableBalance())")
+    @Mapping(target = "pockets", expression = "java(mapActivePockets(account))")
     SavingsAccountResponse toResponse(SavingsAccount account);
 
     List<SavingsAccountResponse> toResponseList(List<SavingsAccount> accounts);

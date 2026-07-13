@@ -14,5 +14,10 @@ public class PocketResponse {
     private BigDecimal balance;
     private BigDecimal goalAmount;
     private BigDecimal progressPercentage;
+
+    /** true = dinero de un tercero. No suma al patrimonio del usuario. */
+    private boolean shared;
+    private String sharedOwnerName;
+
     private LocalDateTime createdAt;
 }
