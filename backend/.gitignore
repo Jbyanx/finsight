@@ -1,3 +1,6 @@
+repomix-output.xml
+/repomix-output.xml
+../repomix-output.xml
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
@@ -31,3 +34,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Liquibase (credenciales — solo lo usa el plugin de Maven, no la app) ###
+src/main/resources/liquibase.properties
