@@ -15,4 +15,8 @@ public class PocketPatchRequest {
     private BigDecimal goalAmount;
 
     private boolean removeGoal; // true → elimina la meta
+
+    private Boolean shared; // null → no cambia, true → marca como compartido, false → marca como propio
+
+    private String sharedOwnerName;
 }

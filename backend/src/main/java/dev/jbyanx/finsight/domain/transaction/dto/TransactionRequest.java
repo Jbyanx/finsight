@@ -33,6 +33,13 @@ public class TransactionRequest {
     private String creditCardId;
     private String savingsAccountId;
 
+    /**
+     * Bolsillo del que sale el dinero (opcional, solo con originType = SAVINGS).
+     * Si el bolsillo es compartido, el gasto se paga con dinero de un tercero y
+     * no afecta el patrimonio del usuario.
+     */
+    private String pocketId;
+
     private boolean shared;
     private String sharedWithName;
     private BigDecimal sharedAmount;

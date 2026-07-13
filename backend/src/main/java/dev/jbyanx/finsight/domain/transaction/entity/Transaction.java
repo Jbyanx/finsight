@@ -2,6 +2,7 @@ package dev.jbyanx.finsight.domain.transaction.entity;
 
 import dev.jbyanx.finsight.domain.auth.entity.User;
 import dev.jbyanx.finsight.domain.card.entity.CreditCard;
+import dev.jbyanx.finsight.domain.savings.entity.Pocket;
 import dev.jbyanx.finsight.domain.savings.entity.SavingsAccount;
 import jakarta.persistence.*;
 import lombok.*;
@@ -49,6 +50,32 @@ public class Transaction {
     @JoinColumn(name = "savings_account_id")
     private SavingsAccount savingsAccount;
 
+    /**
+     * Bolsillo del que sale el dinero (opcional, solo para origen SAVINGS).
+     *
+     * Cuando apunta a un bolsillo COMPARTIDO, el gasto se paga con dinero de un
+     * tercero ("paga la factura con la plata de tu papá"): descuenta el saldo del
+     * bolsillo y de la cuenta, pero NO afecta el patrimonio del usuario.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pocket_id")
+    private Pocket pocket;
+
+    /**
+     * SNAPSHOT: true si el gasto se pagó con dinero de un tercero.
+     *
+     * Es snapshot y no valor derivado A PROPÓSITO: el bolsillo puede dejar de ser
+     * compartido más adelante, y eso no debe reescribir la historia contable.
+     *
+     * Los cálculos de "cuánto gasté yo" DEBEN excluir thirdParty = true.
+     */
+    @Column(nullable = false)
+    private boolean thirdParty;
+
+    /** Dueño del dinero cuando thirdParty = true. Ej: "Papá". */
+    @Column(length = 100)
+    private String thirdPartyOwnerName;
+
     @Column(nullable = false)
     private boolean shared;
 
@@ -86,6 +113,7 @@ public class Transaction {
             sharedAmount = null;
             paymentDeadline = null;
         }
+        if (!thirdParty) thirdPartyOwnerName = null;
     }
 
     public enum OriginType {

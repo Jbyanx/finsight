@@ -6,7 +6,9 @@ import dev.jbyanx.finsight.domain.card.entity.CreditCard;
 import dev.jbyanx.finsight.domain.card.repository.CreditCardRepository;
 import dev.jbyanx.finsight.domain.cash.entity.Cash;
 import dev.jbyanx.finsight.domain.cash.repository.CashRepository;
+import dev.jbyanx.finsight.domain.savings.entity.Pocket;
 import dev.jbyanx.finsight.domain.savings.entity.SavingsAccount;
+import dev.jbyanx.finsight.domain.savings.repository.PocketRepository;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
 import dev.jbyanx.finsight.domain.transaction.dto.TransactionRequest;
 import dev.jbyanx.finsight.domain.transaction.dto.TransactionResponse;
@@ -23,6 +25,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 @RequiredArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
@@ -32,6 +36,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final CreditCardRepository creditCardRepository;
     private final SavingsAccountRepository savingsAccountRepository;
     private final CashRepository cashRepository;
+    private final PocketRepository pocketRepository;   // <-- agregar
     private final TransactionMapper transactionMapper;
 
     @Override
@@ -43,6 +48,15 @@ public class TransactionServiceImpl implements TransactionService {
         // Resuelve el origen y actualiza su balance
         CreditCard creditCard = null;
         SavingsAccount savingsAccount = null;
+        Pocket pocket = null;
+        boolean thirdParty = false;
+        String thirdPartyOwnerName = null;
+
+        if (request.getPocketId() != null
+                && request.getOriginType() != OriginType.SAVINGS) {
+            throw new UnauthorizedException(
+                    "pocketId is only valid when originType is SAVINGS");
+        }
 
         switch (request.getOriginType()) {
 
@@ -73,16 +87,59 @@ public class TransactionServiceImpl implements TransactionService {
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "SavingsAccount", request.getSavingsAccountId()));
 
-                // Verifica que hay saldo disponible
-                if (request.getAmount().compareTo(savingsAccount.getBalance()) > 0) {
-                    throw new UnauthorizedException(
-                            "Insufficient balance on account: "
-                                    + savingsAccount.getInstitution());
-                }
+                if (request.getPocketId() != null) {
+                    // --- Gasto DESDE UN BOLSILLO -------------------------------------
+                    // Puede ser dinero propio reservado (bolsillo con meta) o dinero de un
+                    // tercero ("paga la factura con la plata de tu papá"). En ambos casos el
+                    // límite es el saldo DEL BOLSILLO, no el de la cuenta.
+                    Pocket p = pocketRepository
+                            .findByIdAndSavingsAccountId(
+                                    request.getPocketId(), savingsAccount.getId())
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Pocket", request.getPocketId()));
 
-                savingsAccount.setBalance(
-                        savingsAccount.getBalance().subtract(request.getAmount()));
-                savingsAccountRepository.save(savingsAccount);
+                    if (!p.isActive()) {
+                        throw new UnauthorizedException("Pocket is not active: " + p.getName());
+                    }
+
+                    if (request.getAmount().compareTo(p.getBalance()) > 0) {
+                        throw new UnauthorizedException(
+                                "Insufficient balance in pocket: " + p.getName());
+                    }
+
+                    // Descuenta del bolsillo Y del saldo físico de la cuenta.
+                    // Si el bolsillo es compartido, ownBalance = balance - sharedTotal se
+                    // mantiene igual: la plata salió del banco pero no era del usuario.
+                    p.setBalance(p.getBalance().subtract(request.getAmount()));
+                    pocketRepository.save(p);
+
+                    savingsAccount.setBalance(
+                            savingsAccount.getBalance().subtract(request.getAmount()));
+                    savingsAccountRepository.save(savingsAccount);
+
+                    pocket = p;
+                    thirdParty = p.isShared();
+                    thirdPartyOwnerName = p.isShared() ? p.getSharedOwnerName() : null;
+
+                } else {
+                    // --- Gasto NORMAL del usuario -------------------------------------
+                    // Se valida contra el dinero LIBRE (getAvailableBalance), no contra el
+                    // saldo físico: así es imposible gastar sin querer la plata de terceros
+                    // ni vaciar un bolsillo con meta propia por accidente.
+                    BigDecimal available = savingsAccount.getAvailableBalance();
+
+                    if (request.getAmount().compareTo(available) > 0) {
+                        throw new UnauthorizedException(
+                                "Insufficient available balance on account: "
+                                        + savingsAccount.getInstitution()
+                                        + ". Available: " + available
+                                        + " (money in pockets is excluded)");
+                    }
+
+                    savingsAccount.setBalance(
+                            savingsAccount.getBalance().subtract(request.getAmount()));
+                    savingsAccountRepository.save(savingsAccount);
+                }
             }
 
             case CASH -> {
@@ -100,6 +157,10 @@ public class TransactionServiceImpl implements TransactionService {
                 .user(user)
                 .description(request.getDescription())
                 .amount(request.getAmount())
+                .savingsAccount(savingsAccount)
+                .pocket(pocket)                                 // <-- nuevo
+                .thirdParty(thirdParty)                         // <-- nuevo
+                .thirdPartyOwnerName(thirdPartyOwnerName)       // <-- nuevo
                 .category(request.getCategory())
                 .date(request.getDate())
                 .originType(request.getOriginType())

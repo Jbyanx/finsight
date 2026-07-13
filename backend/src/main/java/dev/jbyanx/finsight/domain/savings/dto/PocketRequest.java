@@ -17,4 +17,10 @@ public class PocketRequest {
     private BigDecimal balance;
 
     private BigDecimal goalAmount;
+
+    /** true = el dinero de este bolsillo es de un tercero (no cuenta como del usuario). */
+    private boolean shared;
+
+    /** Dueño real cuando shared = true. Ej: "Papá". */
+    private String sharedOwnerName;
 }
