@@ -1,0 +1,113 @@
+/* ============================================================
+   Finsight — sistema de diseño
+
+   TESIS: la interfaz no tiene color decorativo. El único color es el de tu
+   salud financiera. Un acento "de marca" no diría nada; que la pantalla se
+   tiña de ámbar cuando tu utilización llega al 27% lo dice todo.
+   El color ES el dato.
+
+   TIPOGRAFÍA:
+   - Bricolage Grotesque (display): carácter, para titulares y cifras grandes.
+   - Inter (cuerpo): legibilidad neutra.
+   - JetBrains Mono (montos): cifras TABULARES. Los pesos colombianos son
+     largos ($2.600.000); la monoespaciada los alinea en columna. Vernáculo
+     de recibo bancario.
+   ============================================================ */
+
+:root {
+  --paper: #fafafb;
+  --card: #ffffff;
+  --ink: #14161a;
+  --muted: #6b7280;
+  --line: #e6e7eb;
+
+  /* Salud financiera: el único color del sistema */
+  --safe: #0e9f8a;
+  --safe-soft: #e6f5f2;
+  --warn: #c77a0a;
+  --warn-soft: #fdf3e3;
+  --danger: #d64550;
+  --danger-soft: #fdeced;
+
+  --display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --body: 'Inter', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --r: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--body);
+  background: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mobile first de verdad: el layout vive en el ancho de un teléfono y se
+   centra en pantallas grandes. No es un desktop encogido. */
+#root {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: 20px 18px calc(20px + env(safe-area-inset-bottom));
+}
+
+/* Los montos SIEMPRE con cifras tabulares. */
+.amount {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 18px;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.btn {
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  width: 100%;
+  cursor: pointer;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--safe);
+  outline-offset: 2px;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
