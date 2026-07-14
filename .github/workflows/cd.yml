@@ -1,6 +1,6 @@
 name: CD
 
-# Despliega a Railway cuando main avanza (merge de un PR ya validado por el CI).
+# Despliega a Fly.io cuando main avanza (merge de un PR ya validado por el CI).
 on:
   push:
     branches:
@@ -80,21 +80,21 @@ jobs:
         run: mvn clean verify
 
   deploy:
-    name: Deploy to Railway
+    name: Deploy to Fly.io
     needs: verify          # si la suite falla, NO se despliega
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
+      - name: Setup Fly
+        uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy
+        run: flyctl deploy --config backend/fly.toml --remote-only
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: railway up --service ${{ secrets.RAILWAY_SERVICE }} --detach
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
       # Al arrancar, Liquibase aplica las migraciones pendientes y Hibernate valida
-      # el schema. Si algo no cuadra, el contenedor no levanta y Railway conserva
+      # el schema. Si algo no cuadra, el contenedor no levanta y Fly conserva
       # el despliegue anterior.
