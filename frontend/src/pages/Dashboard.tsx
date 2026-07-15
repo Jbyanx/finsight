@@ -41,7 +41,7 @@ export default function Dashboard() {
   }
 
   const best = cards[0]; // ya vienen ordenadas por utilización ascendente
-  const health = healthOf(summary.overallUtilization);
+const health = healthOf(summary.overallUtilizationPercentage);
   const firstName = user?.name ? user.name.split(' ')[0] : '';
 
   return (
@@ -80,7 +80,7 @@ export default function Dashboard() {
             color: 'var(--' + health + ')'
           }}
         >
-          {summary.overallUtilization.toFixed(1)}%
+          {summary.overallUtilizationPercentage.toFixed(1)}%
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 8 }}>
           {health === 'safe' && 'Tu historial crediticio está protegido.'}
@@ -116,7 +116,7 @@ export default function Dashboard() {
             utilization={best.utilizationPercentage}
           />
           <p className="amount" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>
-            {money(best.availableCredit)} disponibles · corte el {best.cutOffDay}
+            {money(best.availableAmount)} disponibles · corte el {best.cutOffDay}
           </p>
         </section>
       )}
@@ -149,7 +149,7 @@ export default function Dashboard() {
       <section style={{ marginTop: 26, display: 'grid', gap: 12 }}>
         <Row label="Efectivo" value={money(summary.totalCashBalance)} />
         <Row label="Ahorro" value={money(summary.totalSavingsBalance)} />
-        <Row label="Deuda" value={money(summary.totalDebt)} danger />
+        <Row label="Deuda" value={money(summary.totalRemainingDebt)} danger />
       </section>
     </main>
   );

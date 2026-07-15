@@ -4,7 +4,8 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  pictureUrl?: string;
+  pictureUrl: string | null;
+  provider: 'local' | 'google';
 }
 
 export interface AuthResponse {
@@ -22,7 +23,7 @@ export interface CreditCard {
   creditLimit: number;
   usedAmount: number;
   utilizationPercentage: number;
-  availableCredit: number;
+  availableAmount: number;
   cutOffDay: number;
   paymentDueDay: number;
 }
@@ -49,11 +50,18 @@ export interface SavingsAccount {
 }
 
 export interface FinancialSummary {
-  totalCashBalance: number;
-  totalSavingsBalance: number;
-  totalCreditUsed: number;
   totalCreditLimit: number;
-  overallUtilization: number;
-  totalDebt: number;
-  netIncome: number;
+  totalUsedAmount: number;
+  totalAvailableCredit: number;
+  overallUtilizationPercentage: number;
+  cardAlerts: unknown[];
+  totalSavingsBalance: number;
+  totalCashBalance: number;
+  totalAvailableBalance: number;
+  totalRemainingDebt: number;
+  totalMonthlyDebtPayment: number;
+  estimatedMonthlyIncome: number;
+  estimatedMonthlyOperationalExpenses: number;
+  estimatedNetIncome: number;
+  upcomingInvoices: unknown[];
 }
