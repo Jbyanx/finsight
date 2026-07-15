@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { api, tokens, setOnSessionLost } from '../lib/api';
-import type { User } from '../types';
+import type { AuthResponse, User } from '../types';
 
 interface AuthState {
   user: User | null;
   loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   reload: () => Promise<void>;
 }
@@ -13,6 +14,7 @@ interface AuthState {
 const Ctx = createContext<AuthState>({
   user: null,
   loading: true,
+  login: async () => {},
   logout: async () => {},
   reload: async () => {}
 });
@@ -45,6 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     reload();
   }, [reload]);
 
+  /**
+   * El backend responde lo MISMO que el flujo OAuth: un AuthResponse con los dos
+   * tokens y el usuario. Por eso no hace falta un /me después: el usuario ya viene.
+   */
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await api.post<AuthResponse>('/api/v1/auth/login', { email, password });
+    tokens.save(res.accessToken, res.refreshToken);
+    setUser(res.user);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post('/api/v1/auth/logout', { refreshToken: tokens.refresh });
@@ -55,5 +67,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  return <Ctx.Provider value={{ user, loading, logout, reload }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, login, logout, reload }}>{children}</Ctx.Provider>;
 }
