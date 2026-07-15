@@ -6,12 +6,19 @@ import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import Telegram from './pages/Telegram';
+import Cards from './pages/Cards';
+import { BottomNav } from './components/BottomNav';
 
 function Protected({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <p style={{ color: 'var(--muted)' }}>Cargando…</p>;
   if (!user) return <Navigate to="/login" replace />;
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <BottomNav />
+    </>
+  );
 }
 
 export default function App() {
@@ -35,6 +42,14 @@ export default function App() {
             element={
               <Protected>
                 <Telegram />
+              </Protected>
+            }
+          />
+          <Route
+            path="/cards"
+            element={
+              <Protected>
+                <Cards />
               </Protected>
             }
           />

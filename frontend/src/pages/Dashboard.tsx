@@ -140,9 +140,13 @@ const health = healthOf(summary.overallUtilizationPercentage);
             </div>
           ))}
           {cards.length === 0 && (
-            <div className="card" style={{ color: 'var(--muted)', fontSize: 14 }}>
-              Todavía no tienes tarjetas. Agrega una para ver tu utilización.
-            </div>
+            <Link to="/cards" className="card" style={{
+              color: 'var(--muted)', fontSize: 14, textDecoration: 'none', display: 'block'
+            }}>
+              Todavía no tienes tarjetas.{' '}
+              <span style={{ color: 'var(--ink)', fontWeight: 600 }}>Agrega una</span> para ver
+              tu utilización.
+            </Link>
           )}
         </div>
       </section>
@@ -153,15 +157,6 @@ const health = healthOf(summary.overallUtilizationPercentage);
         <Row label="Deuda" value={money(summary.totalRemainingDebt)} danger />
       </section>
 
-      <Link to="/telegram" style={{ textDecoration: 'none' }}>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          style={{ marginTop: 26, borderColor: 'var(--line)' }}
-        >
-          Vincular Telegram
-        </button>
-      </Link>
     </main>
   );
 }

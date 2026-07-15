@@ -102,7 +102,7 @@ export default function Telegram() {
     }
   }
 
-  const telegramUrl = code ? 'https://telegram.me/' + BOT_USERNAME + '?start=' + code : '#';
+  const telegramUrl = code ? TELEGRAM_BASE + '/' + BOT_USERNAME + '?start=' + code : '#';
 
   return (
     <main>
