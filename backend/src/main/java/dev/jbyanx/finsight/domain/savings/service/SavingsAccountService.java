@@ -27,4 +27,10 @@ public interface SavingsAccountService {
                                String pocketId, PocketPatchRequest request);
 
     void deletePocket(String userId, String accountId, String pocketId);
+
+    PocketResponse depositToPocket(String userId, String accountId,
+                                   String pocketId, PocketAmountRequest request);
+
+    PocketResponse withdrawFromPocket(String userId, String accountId,
+                                      String pocketId, PocketAmountRequest request);
 }

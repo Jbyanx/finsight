@@ -129,10 +129,21 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
                                        PocketRequest request) {
         SavingsAccount account = findAccountBelongingToUser(userId, accountId);
 
+        BigDecimal initialBalance = request.getBalance() != null
+                ? request.getBalance() : BigDecimal.ZERO;
+
+        // Regla de negocio: un bolsillo RESERVA parte del disponible; no crea dinero.
+        // Su saldo inicial no puede superar lo que está libre en la cuenta.
+        BigDecimal available = account.getAvailableBalance();
+        if (initialBalance.compareTo(available) > 0) {
+            throw new UnauthorizedException(
+                    "Pocket balance exceeds available account balance: " + available);
+        }
+
         Pocket pocket = Pocket.builder()
                 .savingsAccount(account)
                 .name(request.getName())
-                .balance(request.getBalance() != null ? request.getBalance() : BigDecimal.ZERO)
+                .balance(initialBalance)
                 .goalAmount(request.getGoalAmount())
                 .build();
 
@@ -164,6 +175,49 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
 
         pocket.setActive(false);
         pocketRepository.save(pocket);
+    }
+
+    @Override
+    @Transactional
+    public PocketResponse depositToPocket(String userId, String accountId,
+                                          String pocketId, PocketAmountRequest request) {
+        SavingsAccount account = findAccountBelongingToUser(userId, accountId);
+
+        Pocket pocket = pocketRepository.findByIdAndSavingsAccountId(pocketId, accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
+
+        // Depositar mueve plata del disponible de la cuenta al bolsillo.
+        // No se puede reservar más de lo que está libre. account.balance NO cambia.
+        BigDecimal available = account.getAvailableBalance();
+        if (request.getAmount().compareTo(available) > 0) {
+            throw new UnauthorizedException(
+                    "Deposit exceeds available account balance: " + available);
+        }
+
+        pocket.setBalance(pocket.getBalance().add(request.getAmount()));
+
+        return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
+    }
+
+    @Override
+    @Transactional
+    public PocketResponse withdrawFromPocket(String userId, String accountId,
+                                             String pocketId, PocketAmountRequest request) {
+        findAccountBelongingToUser(userId, accountId);
+
+        Pocket pocket = pocketRepository.findByIdAndSavingsAccountId(pocketId, accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
+
+        // Retirar devuelve plata del bolsillo al disponible de la cuenta.
+        // No se puede sacar más de lo que hay en el bolsillo. account.balance NO cambia.
+        if (request.getAmount().compareTo(pocket.getBalance()) > 0) {
+            throw new UnauthorizedException(
+                    "Withdrawal exceeds pocket balance: " + pocket.getBalance());
+        }
+
+        pocket.setBalance(pocket.getBalance().subtract(request.getAmount()));
+
+        return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
     }
 
     private SavingsAccount findAccountBelongingToUser(String userId, String accountId) {
