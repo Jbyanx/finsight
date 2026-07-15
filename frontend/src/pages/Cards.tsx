@@ -5,9 +5,17 @@ import { Field } from './Login';
 import { UtilizationBar } from '../components/UtilizationBar';
 import type { CreditCard } from '../types';
 
-/** Espeja CreditCardRequest del backend. nickname es opcional (puede ir ""). */
+/** Alta: espeja CreditCardRequest. institution solo se define al crear. */
 interface CreditCardRequest {
   institution: string;
+  nickname: string;
+  creditLimit: number;
+  cutOffDay: number;
+  paymentDueDay: number;
+}
+
+/** Edición: espeja CreditCardPatchRequest. institution NO es editable. */
+interface CreditCardPatchRequest {
   nickname: string;
   creditLimit: number;
   cutOffDay: number;
@@ -18,6 +26,8 @@ export default function Cards() {
   const [cards, setCards] = useState<CreditCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     setError(null);
@@ -32,6 +42,31 @@ export default function Cards() {
   useEffect(() => {
     load();
   }, []);
+
+  function upsert(card: CreditCard) {
+    setCards((prev) => {
+      if (!prev) return [card];
+      const idx = prev.findIndex((c) => c.id === card.id);
+      if (idx === -1) return [...prev, card];
+      const next = [...prev];
+      next[idx] = card;
+      return next;
+    });
+  }
+
+  async function remove(card: CreditCard) {
+    if (!confirm('¿Eliminar esta tarjeta?')) return;
+    setError(null);
+    setDeletingId(card.id);
+    try {
+      await api.del('/api/v1/cards/' + card.id);
+      setCards((prev) => (prev ? prev.filter((c) => c.id !== card.id) : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No pudimos eliminar la tarjeta.');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   if (error && !cards) {
     return (
@@ -66,11 +101,19 @@ export default function Cards() {
         )}
       </header>
 
+      {error && cards && (
+        <p role="alert" style={{ marginTop: 16, color: 'var(--danger)',
+             background: 'var(--danger-soft)', border: '1px solid var(--danger)',
+             borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.4 }}>
+          {error}
+        </p>
+      )}
+
       {adding && (
         <CardForm
           onCancel={() => setAdding(false)}
-          onCreated={(card) => {
-            setCards((prev) => (prev ? [...prev, card] : [card]));
+          onSaved={(card) => {
+            upsert(card);
             setAdding(false);
           }}
         />
@@ -88,21 +131,53 @@ export default function Cards() {
 
       {cards.length > 0 && (
         <section style={{ marginTop: 22, display: 'grid', gap: 12 }}>
-          {cards.map((c) => (
-            <div key={c.id} className="card">
-              <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
-                {c.nickname || c.institution}
-              </p>
-              <p className="eyebrow" style={{ marginBottom: 12 }}>
-                Corte el {c.cutOffDay} · pago el {c.paymentDueDay}
-              </p>
-              <UtilizationBar
-                used={c.usedAmount}
-                limit={c.creditLimit}
-                utilization={c.utilizationPercentage}
+          {cards.map((c) =>
+            editingId === c.id ? (
+              <CardForm
+                key={c.id}
+                initial={c}
+                onCancel={() => setEditingId(null)}
+                onSaved={(card) => {
+                  upsert(card);
+                  setEditingId(null);
+                }}
               />
-            </div>
-          ))}
+            ) : (
+              <div key={c.id} className="card">
+                <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
+                  {c.nickname || c.institution}
+                </p>
+                <p className="eyebrow" style={{ marginBottom: 12 }}>
+                  Corte el {c.cutOffDay} · pago el {c.paymentDueDay}
+                </p>
+                <UtilizationBar
+                  used={c.usedAmount}
+                  limit={c.creditLimit}
+                  utilization={c.utilizationPercentage}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setEditingId(c.id)}
+                    disabled={deletingId === c.id}
+                    style={{ width: 'auto', padding: '6px 12px', fontSize: 13,
+                             borderColor: 'var(--line)' }}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => remove(c)}
+                    disabled={deletingId === c.id}
+                    style={{ width: 'auto', padding: '6px 12px', fontSize: 13,
+                             borderColor: 'var(--line)', color: 'var(--danger)' }}
+                  >
+                    {deletingId === c.id ? 'Eliminando…' : 'Eliminar'}
+                  </button>
+                </div>
+              </div>
+            )
+          )}
         </section>
       )}
     </main>
@@ -110,22 +185,33 @@ export default function Cards() {
 }
 
 /**
- * Formulario de alta. Valida en el front lo mismo que el backend: institución no
- * vacía, límite >= 0.01, y los dos días entre 1 y 31. El submit queda inhabilitado
- * hasta que todo cumple.
+ * Formulario único para crear y editar. Sin `initial` es alta (POST, con
+ * institución); con `initial` es edición (PATCH), donde la institución se muestra
+ * fija porque el backend no la deja cambiar.
+ *
+ * Valida lo mismo que el backend: límite >= 0.01 y los dos días entre 1 y 31
+ * (más institución no vacía al crear). El submit queda inhabilitado hasta cumplir.
  */
 function CardForm({
+  initial,
   onCancel,
-  onCreated
+  onSaved
 }: {
+  initial?: CreditCard;
   onCancel: () => void;
-  onCreated: (card: CreditCard) => void;
+  onSaved: (card: CreditCard) => void;
 }) {
-  const [institution, setInstitution] = useState('');
-  const [nickname, setNickname] = useState('');
-  const [creditLimit, setCreditLimit] = useState('');
-  const [cutOffDay, setCutOffDay] = useState('');
-  const [paymentDueDay, setPaymentDueDay] = useState('');
+  const editing = initial != null;
+
+  const [institution, setInstitution] = useState(initial?.institution ?? '');
+  const [nickname, setNickname] = useState(initial?.nickname ?? '');
+  const [creditLimit, setCreditLimit] = useState(
+    initial ? String(initial.creditLimit) : ''
+  );
+  const [cutOffDay, setCutOffDay] = useState(initial ? String(initial.cutOffDay) : '');
+  const [paymentDueDay, setPaymentDueDay] = useState(
+    initial ? String(initial.paymentDueDay) : ''
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,7 +221,7 @@ function CardForm({
 
   const validDay = (n: number) => Number.isInteger(n) && n >= 1 && n <= 31;
   const valid =
-    institution.trim() !== '' &&
+    (editing || institution.trim() !== '') &&
     creditLimit.trim() !== '' &&
     limitNum >= 0.01 &&
     validDay(cutNum) &&
@@ -147,25 +233,43 @@ function CardForm({
     setError(null);
     setBusy(true);
     try {
-      const body: CreditCardRequest = {
-        institution: institution.trim(),
-        nickname: nickname.trim(),
-        creditLimit: limitNum,
-        cutOffDay: cutNum,
-        paymentDueDay: dueNum
-      };
-      const card = await api.post<CreditCard>('/api/v1/cards', body);
-      onCreated(card);
+      let card: CreditCard;
+      if (editing) {
+        const body: CreditCardPatchRequest = {
+          nickname: nickname.trim(),
+          creditLimit: limitNum,
+          cutOffDay: cutNum,
+          paymentDueDay: dueNum
+        };
+        card = await api.patch<CreditCard>('/api/v1/cards/' + initial.id, body);
+      } else {
+        const body: CreditCardRequest = {
+          institution: institution.trim(),
+          nickname: nickname.trim(),
+          creditLimit: limitNum,
+          cutOffDay: cutNum,
+          paymentDueDay: dueNum
+        };
+        card = await api.post<CreditCard>('/api/v1/cards', body);
+      }
+      onSaved(card);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos crear la tarjeta.');
+      setError(err instanceof ApiError ? err.message : 'No pudimos guardar la tarjeta.');
       setBusy(false);
     }
   }
 
   return (
     <form onSubmit={onSubmit} className="card" style={{ marginTop: 22, display: 'grid', gap: 12 }}>
-      <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-             placeholder="Bancolombia" />
+      {editing ? (
+        <div style={{ display: 'grid', gap: 6 }}>
+          <span className="eyebrow">Institución</span>
+          <p style={{ fontWeight: 600, fontSize: 15 }}>{institution}</p>
+        </div>
+      ) : (
+        <Field label="Institución" type="text" value={institution} onChange={setInstitution}
+               placeholder="Bancolombia" />
+      )}
       <Field label="Apodo (opcional)" type="text" value={nickname} onChange={setNickname}
              placeholder="Mi tarjeta de viajes" />
       <Field label="Cupo" type="number" value={creditLimit} onChange={setCreditLimit}
@@ -185,7 +289,7 @@ function CardForm({
 
       <button className="btn" type="submit" disabled={busy || !valid}
               style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
-        {busy ? 'Guardando…' : 'Guardar tarjeta'}
+        {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar tarjeta'}
       </button>
       <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
               style={{ borderColor: 'var(--line)' }}>
