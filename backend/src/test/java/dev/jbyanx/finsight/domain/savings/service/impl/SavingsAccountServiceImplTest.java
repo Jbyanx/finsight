@@ -260,4 +260,192 @@ class SavingsAccountServiceImplTest {
         assertFalse(mockPocket.isActive());
         verify(pocketRepository).save(mockPocket);
     }
+
+    // ---------- createPocket (validación de disponible) ----------
+
+    @Test
+    void createPocket_ExceedsAvailable_ThrowsException() {
+        // Cuenta $100.000 sin bolsillos → disponible $100.000
+        PocketRequest req = new PocketRequest();
+        ReflectionTestUtils.setField(req, "name", "Viaje");
+        ReflectionTestUtils.setField(req, "balance", new BigDecimal("300000")); // > disponible
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(mockAccount));
+
+        assertThrows(UnauthorizedException.class,
+                () -> savingsAccountService.createPocket("user-1", "acc-1", req));
+        verify(pocketRepository, never()).save(any());
+    }
+
+    // ---------- deposit / withdraw ----------
+
+    @Test
+    void depositToPocket_ExceedsAvailable_ThrowsException() {
+        // Cuenta $1.000.000 con bolsillo de $900.000 → disponible $100.000
+        SavingsAccount account = accountWithBalance("1000000");
+        Pocket pocket = pocketInAccount(account, "900000");
+        PocketAmountRequest req = amountRequest("200000"); // > disponible 100.000
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(account));
+        when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
+                .thenReturn(Optional.of(pocket));
+
+        assertThrows(UnauthorizedException.class,
+                () -> savingsAccountService.depositToPocket("user-1", "acc-1", "pocket-1", req));
+        verify(pocketRepository, never()).save(any());
+    }
+
+    @Test
+    void withdrawFromPocket_ExceedsPocketBalance_ThrowsException() {
+        SavingsAccount account = accountWithBalance("1000000");
+        Pocket pocket = pocketInAccount(account, "200000");
+        PocketAmountRequest req = amountRequest("300000"); // > saldo del bolsillo
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(account));
+        when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
+                .thenReturn(Optional.of(pocket));
+
+        assertThrows(UnauthorizedException.class,
+                () -> savingsAccountService.withdrawFromPocket("user-1", "acc-1", "pocket-1", req));
+        verify(pocketRepository, never()).save(any());
+    }
+
+    @Test
+    void depositToPocket_Happy_AdjustsAvailable_BalanceUnchanged() {
+        // Cuenta $1.000.000, bolsillo $200.000 → disponible $800.000
+        SavingsAccount account = accountWithBalance("1000000");
+        Pocket pocket = pocketInAccount(account, "200000");
+        PocketAmountRequest req = amountRequest("300000");
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(account));
+        when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
+                .thenReturn(Optional.of(pocket));
+        when(pocketRepository.save(pocket)).thenReturn(pocket);
+        when(savingsAccountMapper.toPocketResponse(pocket))
+                .thenReturn(PocketResponse.builder().build());
+
+        savingsAccountService.depositToPocket("user-1", "acc-1", "pocket-1", req);
+
+        assertEquals(0, new BigDecimal("500000").compareTo(pocket.getBalance()));
+        // El total de la cuenta NO cambia; solo se movió plata a "reservado".
+        assertEquals(0, new BigDecimal("1000000").compareTo(account.getBalance()));
+        assertEquals(0, new BigDecimal("500000").compareTo(account.getAvailableBalance()));
+    }
+
+    @Test
+    void withdrawFromPocket_Happy_AdjustsAvailable_BalanceUnchanged() {
+        // Cuenta $1.000.000, bolsillo $500.000 → disponible $500.000
+        SavingsAccount account = accountWithBalance("1000000");
+        Pocket pocket = pocketInAccount(account, "500000");
+        PocketAmountRequest req = amountRequest("100000");
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(account));
+        when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
+                .thenReturn(Optional.of(pocket));
+        when(pocketRepository.save(pocket)).thenReturn(pocket);
+        when(savingsAccountMapper.toPocketResponse(pocket))
+                .thenReturn(PocketResponse.builder().build());
+
+        savingsAccountService.withdrawFromPocket("user-1", "acc-1", "pocket-1", req);
+
+        assertEquals(0, new BigDecimal("400000").compareTo(pocket.getBalance()));
+        assertEquals(0, new BigDecimal("1000000").compareTo(account.getBalance()));
+        assertEquals(0, new BigDecimal("600000").compareTo(account.getAvailableBalance()));
+    }
+
+    @Test
+    void pocketLifecycle_AvailableEqualsBalanceMinusPockets_AtEveryStep() {
+        // Cuenta $1.000.000, sin bolsillos → disponible = balance
+        SavingsAccount account = accountWithBalance("1000000");
+        assertEquals(0, account.getBalance().compareTo(account.getAvailableBalance()));
+
+        // Crear bolsillo "Viaje" con $200.000
+        PocketRequest createReq = new PocketRequest();
+        ReflectionTestUtils.setField(createReq, "name", "Viaje");
+        ReflectionTestUtils.setField(createReq, "balance", new BigDecimal("200000"));
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(account));
+        when(pocketRepository.save(any(Pocket.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(savingsAccountMapper.toPocketResponse(any()))
+                .thenReturn(PocketResponse.builder().build());
+
+        savingsAccountService.createPocket("user-1", "acc-1", createReq);
+
+        // El bolsillo persistido se refleja en la cuenta (como haría JPA:
+        // @PrePersist marca active=true, algo que el mock no ejecuta).
+        Pocket viaje = pocketCaptorValue();
+        viaje.setActive(true);
+        account.getPockets().add(viaje);
+        assertAvailableConsistent(account);
+        assertEquals(0, new BigDecimal("800000").compareTo(account.getAvailableBalance()));
+
+        // Depositar $300.000 → reservado 500.000, disponible 500.000
+        when(pocketRepository.findByIdAndSavingsAccountId(viaje.getId(), "acc-1"))
+                .thenReturn(Optional.of(viaje));
+        savingsAccountService.depositToPocket("user-1", "acc-1", viaje.getId(),
+                amountRequest("300000"));
+        assertAvailableConsistent(account);
+        assertEquals(0, new BigDecimal("500000").compareTo(account.getAvailableBalance()));
+
+        // Retirar $150.000 → reservado 350.000, disponible 650.000
+        savingsAccountService.withdrawFromPocket("user-1", "acc-1", viaje.getId(),
+                amountRequest("150000"));
+        assertAvailableConsistent(account);
+        assertEquals(0, new BigDecimal("650000").compareTo(account.getAvailableBalance()));
+
+        // El total de la cuenta nunca cambió al operar bolsillos
+        assertEquals(0, new BigDecimal("1000000").compareTo(account.getBalance()));
+    }
+
+    // ---------- helpers ----------
+
+    private SavingsAccount accountWithBalance(String balance) {
+        return SavingsAccount.builder()
+                .id("acc-1")
+                .user(mockUser)
+                .institution("Nu")
+                .balance(new BigDecimal(balance))
+                .shared(false)
+                .active(true)
+                .build();
+    }
+
+    private Pocket pocketInAccount(SavingsAccount account, String balance) {
+        Pocket pocket = Pocket.builder()
+                .id("pocket-1")
+                .savingsAccount(account)
+                .name("Viaje")
+                .balance(new BigDecimal(balance))
+                .active(true)
+                .build();
+        account.getPockets().add(pocket);
+        return pocket;
+    }
+
+    private PocketAmountRequest amountRequest(String amount) {
+        PocketAmountRequest req = new PocketAmountRequest();
+        ReflectionTestUtils.setField(req, "amount", new BigDecimal(amount));
+        return req;
+    }
+
+    private Pocket pocketCaptorValue() {
+        verify(pocketRepository, atLeastOnce()).save(pocketCaptor.capture());
+        return pocketCaptor.getValue();
+    }
+
+    private void assertAvailableConsistent(SavingsAccount account) {
+        BigDecimal pocketsTotal = account.getPockets().stream()
+                .filter(Pocket::isActive)
+                .map(Pocket::getBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(0,
+                account.getBalance().subtract(pocketsTotal)
+                        .compareTo(account.getAvailableBalance()));
+    }
 }
