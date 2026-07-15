@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { money, healthOf } from '../lib/money';
@@ -151,6 +152,16 @@ const health = healthOf(summary.overallUtilizationPercentage);
         <Row label="Ahorro" value={money(summary.totalSavingsBalance)} />
         <Row label="Deuda" value={money(summary.totalRemainingDebt)} danger />
       </section>
+
+      <Link to="/telegram" style={{ textDecoration: 'none' }}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          style={{ marginTop: 26, borderColor: 'var(--line)' }}
+        >
+          Vincular Telegram
+        </button>
+      </Link>
     </main>
   );
 }
