@@ -1,5 +1,14 @@
 # Finsight — Architecture
 
+> **Nota de auditoría (2026-07-16):** el esquema DBML de abajo tiene *drift* frente
+> al código y debe leerse con estas salvedades:
+> - `fixed_debts` en el código incluye además `interest_rate` (no está en el DBML).
+> - Varios campos que la API expone son **derivados/calculados**, no columnas:
+>   deuda → `paid_amount`, `progress_percentage`, `paid_off`; ahorro →
+>   `available_balance`, `own_balance`, `shared_total`; tarjeta →
+>   `utilization_percentage`, `available_amount`.
+> Pendiente: regenerar el DBML desde las entidades reales y marcar los derivados.
+
 ## Diagrama de Base de Datos
 
 ```dbml

@@ -31,3 +31,4 @@ docs/domain.local.md
 .env.local
 .env.*.local
 .idea/
+bot_image.png

@@ -37,3 +37,6 @@ build/
 
 ### Liquibase (credenciales — solo lo usa el plugin de Maven, no la app) ###
 src/main/resources/liquibase.properties
+
+#env
+.env.prod
