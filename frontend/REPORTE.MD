@@ -6,6 +6,23 @@ Todas las peticiones pasan por el cliente `api` (nada de fetch directo).
 
 ---
 
+## Auditoria de documentacion (2026-07-16)
+
+Se re-sincronizo la documentacion del proyecto contra el codigo real (solo docs,
+sin tocar codigo):
+- `docs/roadmap.md`: reescrito con checkboxes precisos (hecho vs pendiente),
+  desglose de pendientes (UI / backend / deuda tecnica) y nueva seccion
+  "Decisiones de dominio pendientes".
+- `README.md`: seccion "Implementation status" con los modulos reales.
+- `docs/architecture.md`: nota de drift del esquema DBML (falta `interest_rate`
+  en `fixed_debts`; campos derivados no son columnas).
+
+Hallazgo: el pago de deuda solo reduce `remainingBalance` tanto en web como en el
+bot — ninguno descuenta de una fuente (efectivo/cuenta). La fuente de verdad del
+estado del proyecto es ahora `docs/roadmap.md`.
+
+---
+
 ## Modulo DEUDAS (pantalla /debts)
 
 **Archivo nuevo:** `src/pages/Debts.tsx`
