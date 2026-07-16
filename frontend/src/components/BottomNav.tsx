@@ -29,6 +29,7 @@ export function BottomNav() {
       >
         <Tab to="/" label="Inicio" icon={<HomeIcon />} />
         <Tab to="/cards" label="Tarjetas" icon={<CardIcon />} />
+        <Tab to="/savings" label="Ahorros" icon={<SavingsIcon />} />
         <Tab to="/telegram" label="Telegram" icon={<SendIcon />} />
       </nav>
     </>
@@ -82,6 +83,16 @@ function CardIcon() {
     <svg {...svg} aria-hidden>
       <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
       <path d="M2.5 9.5h19" />
+    </svg>
+  );
+}
+
+function SavingsIcon() {
+  return (
+    <svg {...svg} aria-hidden>
+      <path d="M3 12a6 6 0 0 1 6-6h5a5 5 0 0 1 5 5 3 3 0 0 1-1.5 2.6V17h-3v-2H9v2H6v-2.3A6 6 0 0 1 3 12Z" />
+      <path d="M3 11H2" />
+      <path d="M14.5 9.5h.01" />
     </svg>
   );
 }

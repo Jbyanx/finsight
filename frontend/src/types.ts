@@ -46,6 +46,8 @@ export interface SavingsAccount {
   sharedTotal: number;
   ownBalance: number;
   availableBalance: number;
+  shared: boolean;
+  sharedOwnerName?: string;
   pockets: Pocket[];
 }
 

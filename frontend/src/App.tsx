@@ -7,6 +7,7 @@ import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
 import Telegram from './pages/Telegram';
 import Cards from './pages/Cards';
+import Savings from './pages/Savings';
 import { BottomNav } from './components/BottomNav';
 
 function Protected({ children }: { children: ReactNode }) {
@@ -50,6 +51,14 @@ export default function App() {
             element={
               <Protected>
                 <Cards />
+              </Protected>
+            }
+          />
+          <Route
+            path="/savings"
+            element={
+              <Protected>
+                <Savings />
               </Protected>
             }
           />
