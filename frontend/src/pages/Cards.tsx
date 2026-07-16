@@ -153,6 +153,7 @@ export default function Cards() {
                 <UtilizationBar
                   used={c.usedAmount}
                   limit={c.creditLimit}
+                  available={c.availableAmount}
                   utilization={c.utilizationPercentage}
                 />
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>

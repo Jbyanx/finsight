@@ -14,10 +14,12 @@ import { healthOf, money } from '../lib/money';
 export function UtilizationBar({
   used,
   limit,
+  available,
   utilization
 }: {
   used: number;
   limit: number;
+  available: number;
   utilization: number;
 }) {
   const health = healthOf(utilization);
@@ -74,6 +76,13 @@ export function UtilizationBar({
           {utilization.toFixed(1)}%
         </span>
       </div>
+
+      {/* El disponible —"cuánto puedo gastar"— siempre a la vista: es la plata,
+          el % es contexto. */}
+      <p className="amount" style={{ fontSize: 13, marginTop: 6 }}>
+        <span style={{ color: 'var(--muted)' }}>Disponible </span>
+        <span style={{ fontWeight: 600 }}>{money(available)}</span>
+      </p>
     </div>
   );
 }

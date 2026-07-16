@@ -65,24 +65,45 @@ const health = healthOf(summary.overallUtilizationPercentage);
         </button>
       </header>
 
-      {/* El titular es la utilización, no el patrimonio: es la cifra que puede
-          hacerte daño esta semana. */}
+      {/* El titular es DINERO, no el porcentaje: lo usado entre tarjetas es la
+          cifra grande; el % es contexto de salud a un lado. Y el disponible
+          —"cuánto puedo gastar"— siempre a la vista. */}
       <section style={{ marginTop: 26 }}>
-        <p className="eyebrow">Utilización total</p>
-        <h1
-          className="amount"
+        <p className="eyebrow">Usado en tarjetas</p>
+        <div
           style={{
-            fontFamily: 'var(--display)',
-            fontSize: 64,
-            fontWeight: 800,
-            letterSpacing: '-0.04em',
-            lineHeight: 1,
-            marginTop: 6,
-            color: 'var(--' + health + ')'
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            gap: 12,
+            marginTop: 6
           }}
         >
-          {summary.overallUtilizationPercentage.toFixed(1)}%
-        </h1>
+          <h1
+            className="amount"
+            style={{
+              fontFamily: 'var(--display)',
+              fontSize: 44,
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              lineHeight: 1
+            }}
+          >
+            {money(summary.totalUsedAmount)}
+          </h1>
+          <span
+            className="amount"
+            style={{ fontSize: 22, fontWeight: 700, color: 'var(--' + health + ')' }}
+          >
+            {summary.overallUtilizationPercentage.toFixed(1)}%
+          </span>
+        </div>
+        <p style={{ fontSize: 15, marginTop: 12 }}>
+          <span style={{ color: 'var(--muted)' }}>Disponible </span>
+          <span className="amount" style={{ fontWeight: 700, fontSize: 16 }}>
+            {money(summary.totalAvailableCredit)}
+          </span>
+        </p>
         <p style={{ color: 'var(--muted)', fontSize: 14, marginTop: 8 }}>
           {health === 'safe' && 'Tu historial crediticio está protegido.'}
           {health === 'warn' && 'Te estás acercando al 30%. Conviene abonar pronto.'}
@@ -114,10 +135,11 @@ const health = healthOf(summary.overallUtilizationPercentage);
           <UtilizationBar
             used={best.usedAmount}
             limit={best.creditLimit}
+            available={best.availableAmount}
             utilization={best.utilizationPercentage}
           />
           <p className="amount" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>
-            {money(best.availableAmount)} disponibles · corte el {best.cutOffDay}
+            Corte el {best.cutOffDay}
           </p>
         </section>
       )}
@@ -135,6 +157,7 @@ const health = healthOf(summary.overallUtilizationPercentage);
               <UtilizationBar
                 used={c.usedAmount}
                 limit={c.creditLimit}
+                available={c.availableAmount}
                 utilization={c.utilizationPercentage}
               />
             </div>
