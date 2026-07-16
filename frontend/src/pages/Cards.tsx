@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
 import { Field } from './Login';
 import { UtilizationBar } from '../components/UtilizationBar';
+import { InlineAlert } from '../components/InlineAlert';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { errorMessage } from '../lib/errorMessage';
 import type { CreditCard } from '../types';
 
 /** Alta: espeja CreditCardRequest. institution solo se define al crear. */
@@ -28,6 +31,7 @@ export default function Cards() {
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<CreditCard | null>(null);
 
   async function load() {
     setError(null);
@@ -35,7 +39,7 @@ export default function Cards() {
       const data = await api.get<CreditCard[]>('/api/v1/cards');
       setCards(data);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos cargar tus tarjetas.');
+      setError(errorMessage(err, 'No pudimos cargar tus tarjetas.'));
     }
   }
 
@@ -54,15 +58,15 @@ export default function Cards() {
     });
   }
 
-  async function remove(card: CreditCard) {
-    if (!confirm('¿Eliminar esta tarjeta?')) return;
+  async function confirmDelete(card: CreditCard) {
+    setPendingDelete(null);
     setError(null);
     setDeletingId(card.id);
     try {
       await api.del('/api/v1/cards/' + card.id);
       setCards((prev) => (prev ? prev.filter((c) => c.id !== card.id) : prev));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos eliminar la tarjeta.');
+      setError(errorMessage(err, 'No pudimos eliminar la tarjeta.'));
     } finally {
       setDeletingId(null);
     }
@@ -71,9 +75,7 @@ export default function Cards() {
   if (error && !cards) {
     return (
       <main>
-        <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
-          {error}
-        </div>
+        <InlineAlert message={error} />
       </main>
     );
   }
@@ -102,11 +104,9 @@ export default function Cards() {
       </header>
 
       {error && cards && (
-        <p role="alert" style={{ marginTop: 16, color: 'var(--danger)',
-             background: 'var(--danger-soft)', border: '1px solid var(--danger)',
-             borderRadius: 10, padding: '10px 12px', fontSize: 13, lineHeight: 1.4 }}>
-          {error}
-        </p>
+        <div style={{ marginTop: 16 }}>
+          <InlineAlert message={error} />
+        </div>
       )}
 
       {adding && (
@@ -131,18 +131,10 @@ export default function Cards() {
 
       {cards.length > 0 && (
         <section style={{ marginTop: 22, display: 'grid', gap: 12 }}>
-          {cards.map((c) =>
-            editingId === c.id ? (
-              <CardForm
-                key={c.id}
-                initial={c}
-                onCancel={() => setEditingId(null)}
-                onSaved={(card) => {
-                  upsert(card);
-                  setEditingId(null);
-                }}
-              />
-            ) : (
+          {cards.map((c) => {
+            const editing = editingId === c.id;
+            const busy = deletingId === c.id;
+            return (
               <div key={c.id} className="card">
                 <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>
                   {c.nickname || c.institution}
@@ -150,36 +142,61 @@ export default function Cards() {
                 <p className="eyebrow" style={{ marginBottom: 12 }}>
                   Corte el {c.cutOffDay} · pago el {c.paymentDueDay}
                 </p>
-                <UtilizationBar
-                  used={c.usedAmount}
-                  limit={c.creditLimit}
-                  available={c.availableAmount}
-                  utilization={c.utilizationPercentage}
-                />
+                {/* Mientras se edita, el formulario ocupa el lugar de la barra. */}
+                {!editing && (
+                  <UtilizationBar
+                    used={c.usedAmount}
+                    limit={c.creditLimit}
+                    available={c.availableAmount}
+                    utilization={c.utilizationPercentage}
+                  />
+                )}
+                {/* Editar abierto → botón ACTIVO (relleno --ink) y Eliminar
+                    atenuado, mismo patrón que Savings. El activo cierra al tocar. */}
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                   <button
                     className="btn btn-ghost"
-                    onClick={() => setEditingId(c.id)}
-                    disabled={deletingId === c.id}
-                    style={{ width: 'auto', padding: '6px 12px', fontSize: 13,
-                             borderColor: 'var(--line)' }}
+                    onClick={() => setEditingId(editing ? null : c.id)}
+                    disabled={busy}
+                    style={editing ? activeBtn : smallBtn}
                   >
                     Editar
                   </button>
                   <button
                     className="btn btn-ghost"
-                    onClick={() => remove(c)}
-                    disabled={deletingId === c.id}
-                    style={{ width: 'auto', padding: '6px 12px', fontSize: 13,
-                             borderColor: 'var(--line)', color: 'var(--danger)' }}
+                    onClick={() => setPendingDelete(c)}
+                    disabled={busy}
+                    style={editing ? dimBtn : { ...smallBtn, color: 'var(--danger)' }}
                   >
-                    {deletingId === c.id ? 'Eliminando…' : 'Eliminar'}
+                    {busy ? 'Eliminando…' : 'Eliminar'}
                   </button>
                 </div>
+                {editing && (
+                  <CardForm
+                    embedded
+                    initial={c}
+                    onCancel={() => setEditingId(null)}
+                    onSaved={(card) => {
+                      upsert(card);
+                      setEditingId(null);
+                    }}
+                  />
+                )}
               </div>
-            )
-          )}
+            );
+          })}
         </section>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Eliminar tarjeta"
+          message={'¿Eliminar "' + (pendingDelete.nickname || pendingDelete.institution) + '"?'}
+          confirmLabel="Eliminar tarjeta"
+          tone="danger"
+          onConfirm={() => confirmDelete(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </main>
   );
@@ -195,10 +212,12 @@ export default function Cards() {
  */
 function CardForm({
   initial,
+  embedded,
   onCancel,
   onSaved
 }: {
   initial?: CreditCard;
+  embedded?: boolean;
   onCancel: () => void;
   onSaved: (card: CreditCard) => void;
 }) {
@@ -255,13 +274,22 @@ function CardForm({
       }
       onSaved(card);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos guardar la tarjeta.');
+      setError(errorMessage(err, 'No pudimos guardar la tarjeta.'));
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="card" style={{ marginTop: 22, display: 'grid', gap: 12 }}>
+    <form
+      onSubmit={onSubmit}
+      className={embedded ? undefined : 'card'}
+      style={
+        embedded
+          ? { marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)',
+              display: 'grid', gap: 12 }
+          : { marginTop: 22, display: 'grid', gap: 12 }
+      }
+    >
       {editing ? (
         <div style={{ display: 'grid', gap: 6 }}>
           <span className="eyebrow">Institución</span>
@@ -280,13 +308,7 @@ function CardForm({
       <Field label="Día de pago" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
              placeholder="5" hint="Entre 1 y 31." />
 
-      {error && (
-        <p role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-soft)',
-             border: '1px solid var(--danger)', borderRadius: 10, padding: '10px 12px',
-             fontSize: 13, lineHeight: 1.4 }}>
-          {error}
-        </p>
-      )}
+      {error && <InlineAlert message={error} />}
 
       <button className="btn" type="submit" disabled={busy || !valid}
               style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
@@ -299,3 +321,26 @@ function CardForm({
     </form>
   );
 }
+
+// Mismos estilos de botón que Savings, por coherencia entre pantallas.
+const smallBtn = {
+  width: 'auto',
+  padding: '6px 12px',
+  fontSize: 13,
+  borderColor: 'var(--line)'
+} as const;
+
+/** Botón en estado activo: relleno --ink, texto claro. La acción abierta. */
+const activeBtn = {
+  ...smallBtn,
+  background: 'var(--ink)',
+  color: 'var(--paper)',
+  borderColor: 'var(--ink)'
+} as const;
+
+/** Botón atenuado: recede mientras hay otra acción abierta. */
+const dimBtn = {
+  ...smallBtn,
+  color: 'var(--muted)',
+  opacity: 0.55
+} as const;

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
+import { errorMessage } from '../lib/errorMessage';
+import { InlineAlert } from '../components/InlineAlert';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const BOT_USERNAME = 'jbyanx_bot';
 const TELEGRAM_BASE = 'https://telegram.me'; // t.me falla en algunas redes/DNS
@@ -31,6 +34,7 @@ export default function Telegram() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [unlinked, setUnlinked] = useState(false);
+  const [confirmingUnlink, setConfirmingUnlink] = useState(false);
 
   // Un solo intervalo vivo a la vez. La ref sobrevive a los renders y nos deja
   // limpiarlo tanto al regenerar como al desmontar.
@@ -68,7 +72,7 @@ export default function Telegram() {
         });
       }, 1000);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos generar el código.');
+      setError(errorMessage(err, 'No pudimos generar el código.'));
     } finally {
       setBusy(false);
     }
@@ -85,8 +89,8 @@ export default function Telegram() {
     }
   }
 
-  async function unlink() {
-    if (!confirm('¿Desvincular esta cuenta del bot de Telegram?')) return;
+  async function confirmUnlink() {
+    setConfirmingUnlink(false);
     setError(null);
     setBusy(true);
     try {
@@ -96,7 +100,7 @@ export default function Telegram() {
       setRemaining(0);
       setUnlinked(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos desvincular la cuenta.');
+      setError(errorMessage(err, 'No pudimos desvincular la cuenta.'));
     } finally {
       setBusy(false);
     }
@@ -143,21 +147,9 @@ export default function Telegram() {
       </section>
 
       {error && (
-        <p
-          role="alert"
-          style={{
-            marginTop: 20,
-            color: 'var(--danger)',
-            background: 'var(--danger-soft)',
-            border: '1px solid var(--danger)',
-            borderRadius: 10,
-            padding: '10px 12px',
-            fontSize: 13,
-            lineHeight: 1.4
-          }}
-        >
-          {error}
-        </p>
+        <div style={{ marginTop: 20 }}>
+          <InlineAlert message={error} />
+        </div>
       )}
 
       {unlinked && (
@@ -251,7 +243,7 @@ export default function Telegram() {
       <p style={{ textAlign: 'center', marginTop: 40 }}>
         <button
           type="button"
-          onClick={unlink}
+          onClick={() => setConfirmingUnlink(true)}
           disabled={busy}
           style={{
             background: 'transparent',
@@ -266,6 +258,17 @@ export default function Telegram() {
           Desvincular esta cuenta
         </button>
       </p>
+
+      {confirmingUnlink && (
+        <ConfirmDialog
+          title="Desvincular Telegram"
+          message="¿Desvincular esta cuenta del bot de Telegram? Dejarás de registrar gastos por mensaje."
+          confirmLabel="Desvincular"
+          tone="danger"
+          onConfirm={confirmUnlink}
+          onCancel={() => setConfirmingUnlink(false)}
+        />
+      )}
     </main>
   );
 }

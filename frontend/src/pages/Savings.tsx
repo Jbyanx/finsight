@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { api, ApiError } from '../lib/api';
+import { api } from '../lib/api';
 import { Field } from './Login';
 import { money } from '../lib/money';
+import { errorMessage } from '../lib/errorMessage';
+import { InlineAlert } from '../components/InlineAlert';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import type { SavingsAccount, Pocket } from '../types';
 
 /* ============================================================
@@ -56,13 +59,14 @@ export default function Savings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<SavingsAccount | null>(null);
 
   async function load() {
     setError(null);
     try {
       setAccounts(await api.get<SavingsAccount[]>('/api/v1/savings'));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos cargar tus cuentas.');
+      setError(errorMessage(err, 'No pudimos cargar tus cuentas.'));
     }
   }
 
@@ -91,15 +95,15 @@ export default function Savings() {
     upsert(fresh);
   }
 
-  async function removeAccount(account: SavingsAccount) {
-    if (!confirm('¿Eliminar esta cuenta de ahorro?')) return;
+  async function confirmDeleteAccount(account: SavingsAccount) {
+    setPendingDelete(null);
     setError(null);
     setDeletingId(account.id);
     try {
       await api.del('/api/v1/savings/' + account.id);
       setAccounts((prev) => (prev ? prev.filter((a) => a.id !== account.id) : prev));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos eliminar la cuenta.');
+      setError(errorMessage(err, 'No pudimos eliminar la cuenta.'));
     } finally {
       setDeletingId(null);
     }
@@ -108,9 +112,7 @@ export default function Savings() {
   if (error && !accounts) {
     return (
       <main>
-        <div className="card" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
-          {error}
-        </div>
+        <InlineAlert message={error} />
       </main>
     );
   }
@@ -138,11 +140,7 @@ export default function Savings() {
         )}
       </header>
 
-      {error && accounts && (
-        <p role="alert" style={alertStyle}>
-          {error}
-        </p>
-      )}
+      {error && accounts && <InlineAlert message={error} />}
 
       {adding && (
         <AccountForm
@@ -181,12 +179,24 @@ export default function Savings() {
               deleting={deletingId === acc.id}
               onToggle={() => setExpandedId((id) => (id === acc.id ? null : acc.id))}
               onEdit={() => setEditingId(acc.id)}
-              onDelete={() => removeAccount(acc)}
+              onDelete={() => setPendingDelete(acc)}
               onPocketChange={() => refreshAccount(acc.id)}
             />
           )
         )}
       </section>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Eliminar cuenta"
+          message={'¿Eliminar "' + (pendingDelete.nickname || pendingDelete.institution) +
+                   '"? Se borrarán también sus bolsillos.'}
+          confirmLabel="Eliminar cuenta"
+          tone="danger"
+          onConfirm={() => confirmDeleteAccount(pendingDelete)}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
     </main>
   );
 }
@@ -212,16 +222,17 @@ function AccountCard({
   const [editingPocketId, setEditingPocketId] = useState<string | null>(null);
   const [pocketError, setPocketError] = useState<string | null>(null);
   const [deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
+  const [pendingDeletePocket, setPendingDeletePocket] = useState<Pocket | null>(null);
 
-  async function removePocket(pocket: Pocket) {
-    if (!confirm('¿Eliminar este bolsillo?')) return;
+  async function confirmDeletePocket(pocket: Pocket) {
+    setPendingDeletePocket(null);
     setPocketError(null);
     setDeletingPocketId(pocket.id);
     try {
       await api.del('/api/v1/savings/' + account.id + '/pockets/' + pocket.id);
       onPocketChange();
     } catch (err) {
-      setPocketError(err instanceof ApiError ? err.message : 'No pudimos eliminar el bolsillo.');
+      setPocketError(errorMessage(err, 'No pudimos eliminar el bolsillo.'));
     } finally {
       setDeletingPocketId(null);
     }
@@ -281,7 +292,7 @@ function AccountCard({
       {expanded && (
         <div style={{ marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 16,
                       display: 'grid', gap: 12 }}>
-          {pocketError && <p role="alert" style={alertStyle}>{pocketError}</p>}
+          {pocketError && <InlineAlert message={pocketError} />}
 
           {account.pockets.length === 0 && !addingPocket && (
             <p style={{ color: 'var(--muted)', fontSize: 13 }}>
@@ -308,7 +319,7 @@ function AccountCard({
                 accountId={account.id}
                 deleting={deletingPocketId === p.id}
                 onEdit={() => setEditingPocketId(p.id)}
-                onDelete={() => removePocket(p)}
+                onDelete={() => setPendingDeletePocket(p)}
                 onOperated={onPocketChange}
               />
             )
@@ -330,6 +341,18 @@ function AccountCard({
             </button>
           )}
         </div>
+      )}
+
+      {pendingDeletePocket && (
+        <ConfirmDialog
+          title="Eliminar bolsillo"
+          message={'¿Eliminar el bolsillo "' + pendingDeletePocket.name +
+                   '"? Su saldo vuelve al disponible de la cuenta.'}
+          confirmLabel="Eliminar bolsillo"
+          tone="danger"
+          onConfirm={() => confirmDeletePocket(pendingDeletePocket)}
+          onCancel={() => setPendingDeletePocket(null)}
+        />
       )}
     </div>
   );
@@ -465,7 +488,7 @@ function PocketAmountForm({
       );
       onDone();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos completar la operación.');
+      setError(errorMessage(err, 'No pudimos completar la operación.'));
       setBusy(false);
     }
   }
@@ -486,7 +509,7 @@ function PocketAmountForm({
           : 'Sale del disponible de la cuenta.'}
       />
 
-      {error && <p role="alert" style={alertStyle}>{error}</p>}
+      {error && <InlineAlert message={error} />}
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn" type="submit" disabled={busy || !valid}
@@ -580,7 +603,7 @@ function AccountForm({
       }
       onSaved(account);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos guardar la cuenta.');
+      setError(errorMessage(err, 'No pudimos guardar la cuenta.'));
       setBusy(false);
     }
   }
@@ -616,7 +639,7 @@ function AccountForm({
                placeholder="Mamá" hint="Nombre de quien es realmente el dinero." />
       )}
 
-      {error && <p role="alert" style={alertStyle}>{error}</p>}
+      {error && <InlineAlert message={error} />}
 
       <button className="btn" type="submit" disabled={busy || !valid}
               style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
@@ -695,7 +718,7 @@ function PocketForm({
       }
       onSaved(pocket);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No pudimos guardar el bolsillo.');
+      setError(errorMessage(err, 'No pudimos guardar el bolsillo.'));
       setBusy(false);
     }
   }
@@ -734,7 +757,7 @@ function PocketForm({
                placeholder="Papá" hint="Nombre de quien es realmente el dinero." />
       )}
 
-      {error && <p role="alert" style={alertStyle}>{error}</p>}
+      {error && <InlineAlert message={error} />}
 
       <button className="btn" type="submit" disabled={busy || !valid}
               style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
@@ -824,12 +847,3 @@ const dimBtn = {
   opacity: 0.55
 } as const;
 
-const alertStyle = {
-  color: 'var(--danger)',
-  background: 'var(--danger-soft)',
-  border: '1px solid var(--danger)',
-  borderRadius: 10,
-  padding: '10px 12px',
-  fontSize: 13,
-  lineHeight: 1.4
-} as const;
