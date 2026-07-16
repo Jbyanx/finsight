@@ -27,6 +27,9 @@ const KNOWN: ReadonlyArray<readonly [string, string]> = [
   ['Amount must be greater than 0', 'El monto debe ser mayor a cero.'],
   ['Amount cannot be negative', 'El monto no puede ser negativo.'],
   ['Amount is required', 'Ingresa un monto.'],
+  // Deudas: abono
+  ['Payment amount exceeds remaining balance',
+    'El pago supera lo que te falta de la deuda.'],
   // Tarjetas / cuentas (transacciones)
   ['Insufficient credit limit on card', 'No hay cupo suficiente en la tarjeta.'],
   ['Insufficient available balance on account',

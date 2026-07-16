@@ -38,6 +38,22 @@ export interface Pocket {
   sharedOwnerName?: string;
 }
 
+export interface FixedDebt {
+  id: string;
+  institution: string;
+  description: string;
+  totalAmount: number;
+  monthlyPayment: number;
+  interestRate: number;
+  paymentDueDay: number;
+  remainingBalance: number;
+  paidAmount: number;
+  /** Cuánto se ha PAGADO (paidAmount / totalAmount). 100% = saldada. */
+  progressPercentage: number;
+  paidOff: boolean;
+  createdAt: string;
+}
+
 export interface SavingsAccount {
   id: string;
   institution: string;
