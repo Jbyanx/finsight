@@ -263,8 +263,11 @@ function AccountCard({
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost" onClick={onToggle} disabled={deleting} style={smallBtn}>
+        <button className="btn btn-ghost" onClick={onToggle} disabled={deleting}
+                style={{ ...(expanded ? activeBtn : smallBtn),
+                         display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           {expanded ? 'Ocultar bolsillos' : 'Ver bolsillos (' + account.pockets.length + ')'}
+          <Chevron open={expanded} />
         </button>
         <button className="btn btn-ghost" onClick={onEdit} disabled={deleting} style={smallBtn}>
           Editar
@@ -375,20 +378,28 @@ function PocketRow({
         />
       )}
 
+      {/* El botón de la operación abierta se ve ACTIVO (relleno --ink); el resto
+          se atenúa. Así el usuario ve en qué acción está sin leer el formulario.
+          El activo se puede volver a tocar para cerrar. */}
       <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost" onClick={() => setOp('deposit')}
-                disabled={deleting || op !== null} style={smallBtn}>
+        <button className="btn btn-ghost"
+                onClick={() => setOp((cur) => (cur === 'deposit' ? null : 'deposit'))}
+                disabled={deleting || op === 'withdraw'}
+                style={op === 'deposit' ? activeBtn : op ? dimBtn : smallBtn}>
           Agregar
         </button>
-        <button className="btn btn-ghost" onClick={() => setOp('withdraw')}
-                disabled={deleting || op !== null} style={smallBtn}>
+        <button className="btn btn-ghost"
+                onClick={() => setOp((cur) => (cur === 'withdraw' ? null : 'withdraw'))}
+                disabled={deleting || op === 'deposit'}
+                style={op === 'withdraw' ? activeBtn : op ? dimBtn : smallBtn}>
           Retirar
         </button>
-        <button className="btn btn-ghost" onClick={onEdit} disabled={deleting} style={smallBtn}>
+        <button className="btn btn-ghost" onClick={onEdit} disabled={deleting}
+                style={op ? dimBtn : smallBtn}>
           Editar
         </button>
         <button className="btn btn-ghost" onClick={onDelete} disabled={deleting}
-                style={{ ...smallBtn, color: 'var(--danger)' }}>
+                style={op ? dimBtn : { ...smallBtn, color: 'var(--danger)' }}>
           {deleting ? 'Eliminando…' : 'Eliminar'}
         </button>
       </div>
@@ -434,7 +445,13 @@ function PocketAmountForm({
 
   const amountNum = Number(amount);
   const valid = amount.trim() !== '' && Number.isFinite(amountNum) && amountNum > 0;
-  const verb = op === 'deposit' ? 'Agregar' : 'Retirar';
+
+  // El formulario declara su acción sin ambigüedad: título en pregunta, acento y
+  // etiqueta del confirmar propios de agregar (--ink) o retirar (--danger).
+  const isWithdraw = op === 'withdraw';
+  const accent = isWithdraw ? 'var(--danger)' : 'var(--ink)';
+  const title = isWithdraw ? '¿Cuánto quieres retirar?' : '¿Cuánto quieres agregar?';
+  const confirmLabel = isWithdraw ? 'Retirar del bolsillo' : 'Agregar al bolsillo';
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -455,17 +472,18 @@ function PocketAmountForm({
 
   return (
     <form onSubmit={onSubmit}
-          style={{ marginTop: 10, display: 'grid', gap: 10, border: '1px solid var(--line)',
-                   borderRadius: 10, padding: 12 }}>
+          style={{ marginTop: 10, display: 'grid', gap: 10,
+                   border: '1px solid ' + accent, borderRadius: 10, padding: 12 }}>
+      <p style={{ fontWeight: 600, fontSize: 14 }}>{title}</p>
       <Field
-        label={op === 'deposit' ? 'Monto a agregar' : 'Monto a retirar'}
+        label="Monto"
         type="number"
         value={amount}
         onChange={setAmount}
         placeholder="50000"
-        hint={op === 'deposit'
-          ? 'Sale del disponible de la cuenta.'
-          : 'Vuelve al disponible de la cuenta.'}
+        hint={isWithdraw
+          ? 'Vuelve al disponible de la cuenta.'
+          : 'Sale del disponible de la cuenta.'}
       />
 
       {error && <p role="alert" style={alertStyle}>{error}</p>}
@@ -473,8 +491,9 @@ function PocketAmountForm({
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn" type="submit" disabled={busy || !valid}
                 style={{ width: 'auto', padding: '8px 16px', fontSize: 13,
+                         background: accent, borderColor: accent, color: 'var(--paper)',
                          opacity: busy || !valid ? 0.5 : 1 }}>
-          {busy ? 'Procesando…' : verb}
+          {busy ? 'Procesando…' : confirmLabel}
         </button>
         <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
                 style={smallBtn}>
@@ -772,11 +791,37 @@ function Toggle({
   );
 }
 
+/** Chevron que rota 180° al abrir: comunica de un vistazo abierto/cerrado. */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+         style={{ transition: 'transform .2s ease', transform: open ? 'rotate(180deg)' : 'none' }}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 const smallBtn = {
   width: 'auto',
   padding: '6px 12px',
   fontSize: 13,
   borderColor: 'var(--line)'
+} as const;
+
+/** Botón en estado activo: relleno --ink, texto claro. La acción abierta. */
+const activeBtn = {
+  ...smallBtn,
+  background: 'var(--ink)',
+  color: 'var(--paper)',
+  borderColor: 'var(--ink)'
+} as const;
+
+/** Botón atenuado: recede mientras hay otra acción abierta. */
+const dimBtn = {
+  ...smallBtn,
+  color: 'var(--muted)',
+  opacity: 0.55
 } as const;
 
 const alertStyle = {
