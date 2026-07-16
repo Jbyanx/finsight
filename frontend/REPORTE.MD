@@ -6,81 +6,49 @@ Todas las peticiones pasan por el cliente `api` (nada de fetch directo).
 
 ---
 
-## 1. FIX critico: el refresh de token estaba roto
-
-**Archivo:** `src/lib/api.ts`
-
-El backend espera el refresh token en un HEADER, no en el body. Verificado en
-`AuthController#refresh`:
-
-```java
-@PostMapping("/refresh")
-public ResponseEntity<AuthResponse> refresh(
-        @RequestHeader("X-Refresh-Token") String refreshToken, ...)
-```
-
-`refreshTokens()` lo enviaba en el body `{ refreshToken }` -> el backend respondia
-500 -> el usuario quedaba deslogueado en cada vencimiento del access token.
-
-- Ahora se envia el token en el header `X-Refresh-Token`, con **body vacio**.
-- Se quito el `Content-Type: application/json` (ya no hay cuerpo).
-- No cambia la logica de "un solo refresh en vuelo" (rotacion de token intacta).
-
-**Contrato usado (verificado en backend):**
-- `POST /api/v1/auth/refresh` header `X-Refresh-Token: <token>`, sin body ->
-  `AuthResponse`.
-
-## 2. FIX: la rueda del mouse alteraba los inputs numericos
-
-**Archivo:** `src/pages/Login.tsx` (componente compartido `Field`)
-
-En `<input type="number">`, al hacer scroll por la pantalla con el input enfocado
-se cambiaban saldos sin querer. Se suelta el foco antes de que la rueda actue:
-
-```tsx
-onWheel={type === 'number' ? (e) => e.currentTarget.blur() : undefined}
-```
-
-Como `Field` es el input compartido de toda la app, el arreglo cubre todos los
-campos numericos (cuentas, bolsillos, tarjetas, montos).
-
-## 3. FEATURE: agregar / retirar de bolsillos (experiencia Nu)
+## Desglose de la cabecera de cada cuenta de ahorro
 
 **Archivo:** `src/pages/Savings.tsx`
 
-Dentro de cada bolsillo, dos acciones **Agregar** y **Retirar** que abren un input
-de **MONTO** (no un total: el usuario piensa "agrego $50.000"), via el nuevo
-componente `PocketAmountForm`.
+**Problema:** la tarjeta mostraba "Tuyo" (`ownBalance`) y el balance total, pero
+no el **Disponible** (`availableBalance`), que es la cifra que el usuario necesita:
+cuanto le queda libre despues de lo apartado en bolsillos. Una cuenta de
+$1.000.000 con $300.000 en bolsillos seguia mostrando $1.000.000 arriba y el
+usuario no veia a donde fue su plata.
 
-- Submit deshabilitado si el monto es `<= 0` (o no numerico).
-- Al confirmar se llama al endpoint y **despues** se re-fetchea la cuenta con
-  `GET /api/v1/savings/{accountId}` (`refreshAccount` -> upsert): el endpoint de
-  bolsillo devuelve solo el `Pocket`, no los agregados de la cuenta (`ownBalance`,
-  `availableBalance`, `sharedTotal`), asi que hay que recargar la cuenta para
-  refrescar el disponible.
-- El error del backend se muestra tal cual via `ApiError` (ej. "no tienes tanto
-  disponible" al depositar, o saldo insuficiente al retirar).
-- Solo una operacion abierta a la vez por bolsillo; los botones se deshabilitan
-  mientras hay una en curso.
+**Solucion:** la cabecera muestra ahora el desglose completo con jerarquia clara:
 
-**Contratos usados (verificados en backend):**
-- `POST /api/v1/savings/{accountId}/pockets/{pocketId}/deposit` body
-  `{ amount: number }` -> `Pocket`. El backend exige `amount <= disponible` de la
-  cuenta.
-- `POST /api/v1/savings/{accountId}/pockets/{pocketId}/withdraw` body
-  `{ amount: number }` -> `Pocket`. El backend exige `amount <= saldo` del
-  bolsillo.
-- Ninguno cambia el balance total de la cuenta; solo mueven dinero entre el
-  disponible y el bolsillo.
-- `PocketAmountRequest`: campo `amount` (BigDecimal, `> 0`).
+- **Disponible** (`availableBalance`) — DESTACADO, cifra protagonista (28px, peso
+  800). Lo que queda libre, ni apartado en bolsillos ni de terceros.
+- **Balance total** (`balance`) — linea de contexto.
+- **Apartado en bolsillos** = `balance - availableBalance`, calculado en el front.
+  Solo se muestra si es `> 0`.
+- **De terceros** (`sharedTotal`) — atenuado, solo si es `> 0`.
 
-## Integracion de la pantalla de ahorros
+Se agrego el helper `InfoRow` (rotulo + monto, con `muted` opcional) para las
+lineas de contexto.
 
-- `src/App.tsx`: ruta protegida `/savings`.
-- `src/components/BottomNav.tsx`: cuarto destino "Ahorros" (`/savings`) con icono
-  SVG inline.
-- `src/types.ts`: `shared` y `sharedOwnerName` agregados a `SavingsAccount` (el
-  PATCH de cuenta los necesita).
+**Invariante en pantalla:** por construccion `Disponible + Apartado en bolsillos =
+Balance total`, ya que `apartado = balance - availableBalance`. Cuadra siempre.
+
+Los campos usados ya venian tipados en `src/types.ts` (`SavingsAccount`):
+`balance`, `ownBalance`, `sharedTotal`, `availableBalance`.
+
+## Refresco tras deposit / withdraw
+
+El usuario reportaba que los numeros no se refrescaban tras agregar/retirar. La
+causa raiz era la misma que arriba: `deposit`/`withdraw` mueven dinero **entre el
+disponible y un bolsillo**, sin tocar `balance`, `ownBalance` ni `sharedTotal`.
+La cabecera mostraba justamente esos campos invariantes, asi que el re-fetch si
+re-renderizaba, pero las cifras visibles no cambiaban.
+
+- El re-fetch (`refreshAccount` -> `GET /api/v1/savings/{accountId}` -> `upsert`)
+  ya era correcto: reemplaza la cuenta por `id` en un array nuevo, forzando el
+  re-render. No se toco.
+- Al mostrar ahora `availableBalance` (que si cambia) y `Apartado en bolsillos`,
+  la actualizacion es visible de inmediato.
+
+No se toco el cliente `api` ni la logica de deposit/withdraw.
 
 ## Verificacion
 
