@@ -91,6 +91,10 @@ export function Field({ label, type, value, onChange, autoComplete, placeholder,
       <input
         type={type} value={value} onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete} placeholder={placeholder}
+        // En los campos numéricos, la rueda del mouse cambia el valor cuando el
+        // input está enfocado: al desplazarse por la pantalla se alteran saldos
+        // sin querer. Soltamos el foco antes de que la rueda actúe.
+        onWheel={type === 'number' ? (e) => e.currentTarget.blur() : undefined}
         style={{
           font: 'inherit',
           fontSize: 16, // menos de 16px hace que iOS haga zoom al enfocar
