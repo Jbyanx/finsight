@@ -227,34 +227,38 @@ function AccountCard({
     }
   }
 
+  // Lo apartado en bolsillos es lo que el balance total le lleva al disponible.
+  // Por construccion: disponible + apartado = balance total (la invariante que
+  // el usuario ve cuadrar en pantalla).
+  const pocketed = account.balance - account.availableBalance;
+
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <p style={{ fontWeight: 600, fontSize: 15 }}>{account.nickname || account.institution}</p>
-          {account.nickname && (
-            <p className="eyebrow" style={{ marginTop: 2 }}>{account.institution}</p>
-          )}
-        </div>
-        <p className="amount" style={{ fontSize: 15, color: 'var(--muted)' }}>
-          {money(account.balance)}
+      <div>
+        <p style={{ fontWeight: 600, fontSize: 15 }}>{account.nickname || account.institution}</p>
+        {account.nickname && (
+          <p className="eyebrow" style={{ marginTop: 2 }}>{account.institution}</p>
+        )}
+      </div>
+
+      {/* Disponible es la cifra protagonista: lo libre, ni apartado en bolsillos
+          ni de terceros. El resto son lineas de contexto para que se entienda a
+          donde fue la plata. Es tambien el numero que cambia tras deposit/
+          withdraw (balance, ownBalance y sharedTotal no se mueven). */}
+      <div style={{ marginTop: 14 }}>
+        <span className="eyebrow">Disponible</span>
+        <p className="amount" style={{ fontSize: 28, fontWeight: 800, marginTop: 2 }}>
+          {money(account.availableBalance)}
         </p>
       </div>
 
-      {/* Lo tuyo es la cifra protagonista; lo ajeno va aparte y atenuado. */}
-      <div style={{ marginTop: 14, display: 'grid', gap: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span className="eyebrow">Tuyo</span>
-          <span className="amount" style={{ fontSize: 22, fontWeight: 700 }}>
-            {money(account.ownBalance)}
-          </span>
-        </div>
+      <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+        <InfoRow label="Balance total" value={money(account.balance)} />
+        {pocketed > 0 && (
+          <InfoRow label="Apartado en bolsillos" value={money(pocketed)} />
+        )}
         {account.sharedTotal > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                        opacity: 0.55 }}>
-            <span className="eyebrow">De terceros</span>
-            <span className="amount" style={{ fontSize: 14 }}>{money(account.sharedTotal)}</span>
-          </div>
+          <InfoRow label="De terceros" value={money(account.sharedTotal)} muted />
         )}
       </div>
 
@@ -722,6 +726,18 @@ function PocketForm({
         Cancelar
       </button>
     </form>
+  );
+}
+
+/** Linea de contexto del desglose de una cuenta: rotulo a la izquierda, monto a
+ *  la derecha. `muted` atenua las cifras que no son propias (de terceros). */
+function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                  opacity: muted ? 0.55 : 1 }}>
+      <span className="eyebrow">{label}</span>
+      <span className="amount" style={{ fontSize: 14 }}>{value}</span>
+    </div>
   );
 }
 
