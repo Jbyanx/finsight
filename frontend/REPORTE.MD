@@ -6,57 +6,81 @@ Todas las peticiones pasan por el cliente `api` (nada de fetch directo).
 
 ---
 
-## 1. Navegacion inferior (bottom nav)
+## 1. FIX critico: el refresh de token estaba roto
 
-**Archivo nuevo:** `src/components/BottomNav.tsx`
+**Archivo:** `src/lib/api.ts`
 
-- Barra fija al fondo, centrada dentro del ancho de 480px, respetando
-  `env(safe-area-inset-bottom)`.
-- Un espaciador reserva el alto de la barra para que el contenido no quede tapado.
-- Tres destinos: Inicio (`/`), Tarjetas (`/cards`), Telegram (`/telegram`).
-- Destino activo en `--ink`, el resto en `--muted` (via `NavLink`, con `end` en
-  la raiz para no marcar Inicio en todas las rutas).
-- Iconos en SVG inline (`currentColor`), sin librerias de iconos.
-- Se monta dentro de `Protected` en `App.tsx`, por lo que aparece solo en las
-  pantallas autenticadas y nunca en `/login` ni `/register`.
+El backend espera el refresh token en un HEADER, no en el body. Verificado en
+`AuthController#refresh`:
 
-## 2. Pantalla de tarjetas `/cards`
+```java
+@PostMapping("/refresh")
+public ResponseEntity<AuthResponse> refresh(
+        @RequestHeader("X-Refresh-Token") String refreshToken, ...)
+```
 
-**Archivo nuevo:** `src/pages/Cards.tsx`
+`refreshTokens()` lo enviaba en el body `{ refreshToken }` -> el backend respondia
+500 -> el usuario quedaba deslogueado en cada vencimiento del access token.
 
-- Ruta protegida `/cards` agregada en `App.tsx`.
-- Lista las tarjetas reusando `UtilizationBar` (la marca del 30%) tal cual.
-- Boton "Agregar tarjeta" que despliega un formulario en linea (dentro de una
-  `.card`), reusando el componente `Field` de `Login.tsx`.
-- Estado vacio con mensaje claro para el usuario nuevo.
-- Manejo de `ApiError` mostrando el mensaje del backend.
-- Al crear con exito, la lista se refresca en memoria (sin recargar la pagina):
-  la tarjeta devuelta se agrega al estado.
-
-**Validacion en el front (espeja `CreditCardRequest.java`):**
-- `institution`: requerido, no vacio.
-- `nickname`: opcional (se envia "" si va vacio).
-- `creditLimit`: numero >= 0.01.
-- `cutOffDay` y `paymentDueDay`: enteros entre 1 y 31.
-- El boton de guardar queda deshabilitado hasta que todo cumple.
+- Ahora se envia el token en el header `X-Refresh-Token`, con **body vacio**.
+- Se quito el `Content-Type: application/json` (ya no hay cuerpo).
+- No cambia la logica de "un solo refresh en vuelo" (rotacion de token intacta).
 
 **Contrato usado (verificado en backend):**
-- `GET  /api/v1/cards` -> `CreditCard[]`.
-- `POST /api/v1/cards` body `{ institution, nickname, creditLimit, cutOffDay,
-  paymentDueDay }` -> `CreditCard` completo.
+- `POST /api/v1/auth/refresh` header `X-Refresh-Token: <token>`, sin body ->
+  `AuthResponse`.
 
-## Cambios en pantallas existentes
+## 2. FIX: la rueda del mouse alteraba los inputs numericos
 
-- `src/App.tsx`: rutas protegidas `/cards`; `BottomNav` dentro de `Protected`.
-- `src/pages/Dashboard.tsx`: el estado vacio "Todavia no tienes tarjetas. Agrega
-  una" ahora es un enlace a `/cards`.
+**Archivo:** `src/pages/Login.tsx` (componente compartido `Field`)
 
-## Nota
+En `<input type="number">`, al hacer scroll por la pantalla con el input enfocado
+se cambiaban saldos sin querer. Se suelta el foco antes de que la rueda actue:
 
-En `src/pages/Telegram.tsx` la base del enlace se movio a la constante
-`TELEGRAM_BASE` (`https://telegram.me`, porque `t.me` falla en algunas
-redes/DNS) y el `telegramUrl` ahora la reutiliza, dejando `tsc` y `oxlint` en
-verde.
+```tsx
+onWheel={type === 'number' ? (e) => e.currentTarget.blur() : undefined}
+```
+
+Como `Field` es el input compartido de toda la app, el arreglo cubre todos los
+campos numericos (cuentas, bolsillos, tarjetas, montos).
+
+## 3. FEATURE: agregar / retirar de bolsillos (experiencia Nu)
+
+**Archivo:** `src/pages/Savings.tsx`
+
+Dentro de cada bolsillo, dos acciones **Agregar** y **Retirar** que abren un input
+de **MONTO** (no un total: el usuario piensa "agrego $50.000"), via el nuevo
+componente `PocketAmountForm`.
+
+- Submit deshabilitado si el monto es `<= 0` (o no numerico).
+- Al confirmar se llama al endpoint y **despues** se re-fetchea la cuenta con
+  `GET /api/v1/savings/{accountId}` (`refreshAccount` -> upsert): el endpoint de
+  bolsillo devuelve solo el `Pocket`, no los agregados de la cuenta (`ownBalance`,
+  `availableBalance`, `sharedTotal`), asi que hay que recargar la cuenta para
+  refrescar el disponible.
+- El error del backend se muestra tal cual via `ApiError` (ej. "no tienes tanto
+  disponible" al depositar, o saldo insuficiente al retirar).
+- Solo una operacion abierta a la vez por bolsillo; los botones se deshabilitan
+  mientras hay una en curso.
+
+**Contratos usados (verificados en backend):**
+- `POST /api/v1/savings/{accountId}/pockets/{pocketId}/deposit` body
+  `{ amount: number }` -> `Pocket`. El backend exige `amount <= disponible` de la
+  cuenta.
+- `POST /api/v1/savings/{accountId}/pockets/{pocketId}/withdraw` body
+  `{ amount: number }` -> `Pocket`. El backend exige `amount <= saldo` del
+  bolsillo.
+- Ninguno cambia el balance total de la cuenta; solo mueven dinero entre el
+  disponible y el bolsillo.
+- `PocketAmountRequest`: campo `amount` (BigDecimal, `> 0`).
+
+## Integracion de la pantalla de ahorros
+
+- `src/App.tsx`: ruta protegida `/savings`.
+- `src/components/BottomNav.tsx`: cuarto destino "Ahorros" (`/savings`) con icono
+  SVG inline.
+- `src/types.ts`: `shared` y `sharedOwnerName` agregados a `SavingsAccount` (el
+  PATCH de cuenta los necesita).
 
 ## Verificacion
 
