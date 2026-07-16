@@ -62,10 +62,12 @@ async function refreshTokens(): Promise<string> {
   const refreshToken = tokens.refresh;
   if (!refreshToken) throw new Error('no refresh token');
 
+  // El backend espera el refresh token en el header X-Refresh-Token (ver
+  // AuthController#refresh), NO en el body. Mandarlo en el body daba 500 y
+  // deslogueaba al usuario en cada vencimiento del access token.
   const res = await fetch('/api/v1/auth/refresh', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken })
+    headers: { 'X-Refresh-Token': refreshToken }
   });
 
   if (!res.ok) {
