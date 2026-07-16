@@ -177,24 +177,23 @@ const health = healthOf(summary.overallUtilizationPercentage);
       <section style={{ marginTop: 26, display: 'grid', gap: 12 }}>
         <Row label="Efectivo" value={money(summary.totalCashBalance)} />
         <Row label="Ahorro" value={money(summary.totalSavingsBalance)} />
-        <Row label="Deuda" value={money(summary.totalRemainingDebt)} danger />
+        <Row label="Deuda" value={money(summary.totalRemainingDebt)} danger to="/debts" />
       </section>
 
     </main>
   );
 }
 
-function Row({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        paddingBottom: 12,
-        borderBottom: '1px solid var(--line)'
-      }}
-    >
+function Row({ label, value, danger, to }: { label: string; value: string; danger?: boolean; to?: string }) {
+  const style = {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    paddingBottom: 12,
+    borderBottom: '1px solid var(--line)'
+  } as const;
+  const inner = (
+    <>
       <span style={{ color: 'var(--muted)', fontSize: 14 }}>{label}</span>
       <span
         className="amount"
@@ -206,6 +205,14 @@ function Row({ label, value, danger }: { label: string; value: string; danger?: 
       >
         {value}
       </span>
-    </div>
+    </>
   );
+  if (to) {
+    return (
+      <Link to={to} style={{ ...style, textDecoration: 'none', color: 'inherit' }}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div style={style}>{inner}</div>;
 }

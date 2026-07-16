@@ -27,9 +27,11 @@ export function BottomNav() {
           zIndex: 10
         }}
       >
+        {/* TODO: evaluar menú "Más" al superar 5 destinos: en móvil ya satura. */}
         <Tab to="/" label="Inicio" icon={<HomeIcon />} />
         <Tab to="/cards" label="Tarjetas" icon={<CardIcon />} />
         <Tab to="/savings" label="Ahorros" icon={<SavingsIcon />} />
+        <Tab to="/debts" label="Deudas" icon={<DebtIcon />} />
         <Tab to="/telegram" label="Telegram" icon={<SendIcon />} />
       </nav>
     </>
@@ -93,6 +95,17 @@ function SavingsIcon() {
       <path d="M3 12a6 6 0 0 1 6-6h5a5 5 0 0 1 5 5 3 3 0 0 1-1.5 2.6V17h-3v-2H9v2H6v-2.3A6 6 0 0 1 3 12Z" />
       <path d="M3 11H2" />
       <path d="M14.5 9.5h.01" />
+    </svg>
+  );
+}
+
+function DebtIcon() {
+  return (
+    <svg {...svg} aria-hidden>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
     </svg>
   );
 }
