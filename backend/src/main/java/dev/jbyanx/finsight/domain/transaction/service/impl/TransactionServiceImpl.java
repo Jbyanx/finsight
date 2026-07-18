@@ -36,7 +36,7 @@ public class TransactionServiceImpl implements TransactionService {
     private final CreditCardRepository creditCardRepository;
     private final SavingsAccountRepository savingsAccountRepository;
     private final CashRepository cashRepository;
-    private final PocketRepository pocketRepository;   // <-- agregar
+    private final PocketRepository pocketRepository;
     private final TransactionMapper transactionMapper;
 
     @Override
@@ -158,9 +158,9 @@ public class TransactionServiceImpl implements TransactionService {
                 .description(request.getDescription())
                 .amount(request.getAmount())
                 .savingsAccount(savingsAccount)
-                .pocket(pocket)                                 // <-- nuevo
-                .thirdParty(thirdParty)                         // <-- nuevo
-                .thirdPartyOwnerName(thirdPartyOwnerName)       // <-- nuevo
+                .pocket(pocket)
+                .thirdParty(thirdParty)
+                .thirdPartyOwnerName(thirdPartyOwnerName)
                 .category(request.getCategory())
                 .date(request.getDate())
                 .originType(request.getOriginType())
