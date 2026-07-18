@@ -53,8 +53,7 @@ public class CreditCardServiceImpl implements CreditCardService {
             // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado
             if (request.getCreditLimit().compareTo(card.getUsedAmount()) < 0) {
                 throw new InvalidCreditLimitException(
-                        "New credit limit cannot be less than current used amount: "
-                                + card.getUsedAmount());
+                        request.getCreditLimit(), card.getUsedAmount());
             }
             card.setCreditLimit(request.getCreditLimit());
         }

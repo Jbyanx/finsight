@@ -37,6 +37,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "Invoice Already Paid", ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidCreditLimitException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCreditLimit(
+            InvalidCreditLimitException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Invalid Credit Limit", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(InsufficientFundsException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientFunds(
             InsufficientFundsException ex, HttpServletRequest request) {
