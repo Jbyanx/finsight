@@ -11,7 +11,6 @@ import dev.jbyanx.finsight.domain.card.repository.CreditCardRepository;
 import dev.jbyanx.finsight.domain.card.service.CreditCardService;
 import dev.jbyanx.finsight.shared.exception.InvalidCreditLimitException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

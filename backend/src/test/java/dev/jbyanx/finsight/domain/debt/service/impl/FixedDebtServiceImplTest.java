@@ -14,7 +14,6 @@ import dev.jbyanx.finsight.domain.transaction.entity.Transaction.OriginType;
 import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
 import dev.jbyanx.finsight.shared.exception.DebtAlreadyPaidOffException;
 import dev.jbyanx.finsight.shared.exception.PaymentExceedsBalanceException;
-import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
 import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
 import dev.jbyanx.finsight.shared.exception.InsufficientFundsException;
 import org.junit.jupiter.api.BeforeEach;
