@@ -7,9 +7,13 @@ import dev.jbyanx.finsight.domain.debt.entity.FixedDebt;
 import dev.jbyanx.finsight.domain.debt.mapper.FixedDebtMapper;
 import dev.jbyanx.finsight.domain.debt.repository.FixedDebtRepository;
 import dev.jbyanx.finsight.domain.debt.service.FixedDebtService;
+import dev.jbyanx.finsight.domain.transaction.dto.TransactionRequest;
+import dev.jbyanx.finsight.domain.transaction.entity.Transaction.OriginType;
+import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
 import dev.jbyanx.finsight.shared.exception.DebtAlreadyPaidOffException;
 import dev.jbyanx.finsight.shared.exception.PaymentExceedsBalanceException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
+import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +26,7 @@ public class FixedDebtServiceImpl implements FixedDebtService {
     private final FixedDebtRepository fixedDebtRepository;
     private final UserRepository userRepository;
     private final FixedDebtMapper fixedDebtMapper;
+    private final TransactionService transactionService;
 
     @Override
     @Transactional
@@ -94,11 +99,47 @@ public class FixedDebtServiceImpl implements FixedDebtService {
                     debt.getRemainingBalance().toString());
         }
 
+        // El descuento de la fuente va PRIMERO: create() valida el saldo disponible y
+        // lanza si no alcanza, así la deuda no se toca. Todo bajo la misma @Transactional.
+        if (request.getOriginType() != null) {
+            discountFromSource(userId, debt, request);
+        }
+
         // applyPayment en la entidad actualiza el balance
         // y desactiva automáticamente si queda en cero
         debt.applyPayment(request.getAmount());
 
         return fixedDebtMapper.toResponse(fixedDebtRepository.save(debt));
+    }
+
+    /**
+     * Delega en TransactionService: ahí ya vive la validación de saldo, el manejo de
+     * bolsillos y dinero de terceros, y el descuento. Además deja el movimiento
+     * trazable en el historial en vez de que la plata desaparezca sin rastro.
+     */
+    private void discountFromSource(String userId, FixedDebt debt,
+                                    DebtPaymentRequest request) {
+        OriginType originType = request.getOriginType();
+
+        if (originType == OriginType.CREDIT_CARD) {
+            throw new UnauthorizedException(
+                    "A debt cannot be paid with a credit card: that moves the debt "
+                            + "instead of settling it. Use CASH or SAVINGS.");
+        }
+
+        if (originType == OriginType.SAVINGS && request.getSavingsAccountId() == null) {
+            throw new UnauthorizedException(
+                    "savingsAccountId is required when originType is SAVINGS");
+        }
+
+        transactionService.create(userId, TransactionRequest.builder()
+                .description("Pago deuda " + debt.getInstitution())
+                .category("Deuda")
+                .amount(request.getAmount())
+                .originType(originType)
+                .savingsAccountId(request.getSavingsAccountId())
+                .pocketId(request.getPocketId())
+                .build());
     }
 
     private FixedDebt findDebtBelongingToUser(String userId, String debtId) {
