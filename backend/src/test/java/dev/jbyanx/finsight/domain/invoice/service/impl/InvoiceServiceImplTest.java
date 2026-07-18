@@ -13,7 +13,7 @@ import dev.jbyanx.finsight.domain.invoice.mapper.InvoiceMapper;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoicePaymentRepository;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoiceRepository;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -216,7 +216,7 @@ class InvoiceServiceImplTest {
                 .findByInvoiceIdAndPeriodMonthAndPeriodYear("inv-1", 6, 2026))
                 .thenReturn(Optional.of(existing));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(BusinessRuleException.class,
                 () -> invoiceService.registerPayment("user-1", "inv-1", paymentRequest(6, 2026)));
         verify(invoicePaymentRepository, never()).save(any());
     }

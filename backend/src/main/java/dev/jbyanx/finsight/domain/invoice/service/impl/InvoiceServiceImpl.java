@@ -12,8 +12,8 @@ import dev.jbyanx.finsight.domain.invoice.mapper.InvoiceMapper;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoicePaymentRepository;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoiceRepository;
 import dev.jbyanx.finsight.domain.invoice.service.InvoiceService;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -119,7 +119,7 @@ public class InvoiceServiceImpl implements InvoiceService {
                         invoiceId, request.getPeriodMonth(), request.getPeriodYear())
                 .ifPresent(existing -> {
                     if (existing.getStatus() == PaymentStatus.PAID) {
-                        throw new UnauthorizedException(
+                        throw new BusinessRuleException(
                                 "Invoice already paid for period "
                                         + request.getPeriodMonth() + "/"
                                         + request.getPeriodYear());
