@@ -13,7 +13,7 @@ import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
 import dev.jbyanx.finsight.shared.exception.DebtAlreadyPaidOffException;
 import dev.jbyanx.finsight.shared.exception.PaymentExceedsBalanceException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,13 +122,13 @@ public class FixedDebtServiceImpl implements FixedDebtService {
         OriginType originType = request.getOriginType();
 
         if (originType == OriginType.CREDIT_CARD) {
-            throw new UnauthorizedException(
+            throw new BusinessRuleException(
                     "A debt cannot be paid with a credit card: that moves the debt "
                             + "instead of settling it. Use CASH or SAVINGS.");
         }
 
         if (originType == OriginType.SAVINGS && request.getSavingsAccountId() == null) {
-            throw new UnauthorizedException(
+            throw new BusinessRuleException(
                     "savingsAccountId is required when originType is SAVINGS");
         }
 

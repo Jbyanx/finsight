@@ -15,7 +15,8 @@ import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
 import dev.jbyanx.finsight.shared.exception.DebtAlreadyPaidOffException;
 import dev.jbyanx.finsight.shared.exception.PaymentExceedsBalanceException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
+import dev.jbyanx.finsight.shared.exception.InsufficientFundsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -233,7 +234,7 @@ class FixedDebtServiceImplTest {
         when(fixedDebtRepository.findByIdAndUserId("debt-1", "user-1"))
                 .thenReturn(Optional.of(mockDebt));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(BusinessRuleException.class,
                 () -> fixedDebtService.applyPayment("user-1", "debt-1", payment));
 
         // La deuda queda intacta
@@ -253,7 +254,7 @@ class FixedDebtServiceImplTest {
         when(fixedDebtRepository.findByIdAndUserId("debt-1", "user-1"))
                 .thenReturn(Optional.of(mockDebt));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(BusinessRuleException.class,
                 () -> fixedDebtService.applyPayment("user-1", "debt-1", payment));
 
         assertEquals(0, new BigDecimal("141889").compareTo(mockDebt.getRemainingBalance()));
@@ -271,9 +272,9 @@ class FixedDebtServiceImplTest {
         when(fixedDebtRepository.findByIdAndUserId("debt-1", "user-1"))
                 .thenReturn(Optional.of(mockDebt));
         when(transactionService.create(eq("user-1"), any(TransactionRequest.class)))
-                .thenThrow(new UnauthorizedException("Insufficient cash balance"));
+                .thenThrow(new InsufficientFundsException("Insufficient cash balance"));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(InsufficientFundsException.class,
                 () -> fixedDebtService.applyPayment("user-1", "debt-1", payment));
 
         // El descuento va primero: si la fuente falla, la deuda no se toca

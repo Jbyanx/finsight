@@ -9,7 +9,8 @@ import dev.jbyanx.finsight.domain.savings.mapper.SavingsAccountMapper;
 import dev.jbyanx.finsight.domain.savings.repository.PocketRepository;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
+import dev.jbyanx.finsight.shared.exception.InsufficientFundsException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -163,7 +164,7 @@ class SavingsAccountServiceImplTest {
         when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
                 .thenReturn(Optional.of(mockPocket));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(BusinessRuleException.class,
                 () -> savingsAccountService.patchPocket("user-1", "acc-1", "pocket-1", req));
         verify(pocketRepository, never()).save(any());
     }
@@ -273,7 +274,7 @@ class SavingsAccountServiceImplTest {
         when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
                 .thenReturn(Optional.of(mockAccount));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(InsufficientFundsException.class,
                 () -> savingsAccountService.createPocket("user-1", "acc-1", req));
         verify(pocketRepository, never()).save(any());
     }
@@ -292,7 +293,7 @@ class SavingsAccountServiceImplTest {
         when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
                 .thenReturn(Optional.of(pocket));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(InsufficientFundsException.class,
                 () -> savingsAccountService.depositToPocket("user-1", "acc-1", "pocket-1", req));
         verify(pocketRepository, never()).save(any());
     }
@@ -308,7 +309,7 @@ class SavingsAccountServiceImplTest {
         when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
                 .thenReturn(Optional.of(pocket));
 
-        assertThrows(UnauthorizedException.class,
+        assertThrows(InsufficientFundsException.class,
                 () -> savingsAccountService.withdrawFromPocket("user-1", "acc-1", "pocket-1", req));
         verify(pocketRepository, never()).save(any());
     }

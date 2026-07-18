@@ -10,7 +10,8 @@ import dev.jbyanx.finsight.domain.savings.repository.PocketRepository;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
 import dev.jbyanx.finsight.domain.savings.service.SavingsAccountService;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
+import dev.jbyanx.finsight.shared.exception.InsufficientFundsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -105,7 +106,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         } else if (request.getGoalAmount() != null) {
             // Regla de negocio: la meta no puede ser menor al saldo actual
             if (request.getGoalAmount().compareTo(pocket.getBalance()) < 0) {
-                throw new UnauthorizedException(
+                throw new BusinessRuleException(
                         "Goal amount cannot be less than current balance: "
                                 + pocket.getBalance());
             }
@@ -136,7 +137,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         // Su saldo inicial no puede superar lo que está libre en la cuenta.
         BigDecimal available = account.getAvailableBalance();
         if (initialBalance.compareTo(available) > 0) {
-            throw new UnauthorizedException(
+            throw new InsufficientFundsException(
                     "Pocket balance exceeds available account balance: " + available);
         }
 
@@ -190,7 +191,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         // No se puede reservar más de lo que está libre. account.balance NO cambia.
         BigDecimal available = account.getAvailableBalance();
         if (request.getAmount().compareTo(available) > 0) {
-            throw new UnauthorizedException(
+            throw new InsufficientFundsException(
                     "Deposit exceeds available account balance: " + available);
         }
 
@@ -211,7 +212,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         // Retirar devuelve plata del bolsillo al disponible de la cuenta.
         // No se puede sacar más de lo que hay en el bolsillo. account.balance NO cambia.
         if (request.getAmount().compareTo(pocket.getBalance()) > 0) {
-            throw new UnauthorizedException(
+            throw new InsufficientFundsException(
                     "Withdrawal exceeds pocket balance: " + pocket.getBalance());
         }
 

@@ -31,6 +31,20 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientFunds(
+            InsufficientFundsException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Insufficient Funds",
+                ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRule(
+            BusinessRuleException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Business Rule Violation",
+                ex.getMessage(), request);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMissingBody(
             HttpMessageNotReadableException ex, HttpServletRequest request) {

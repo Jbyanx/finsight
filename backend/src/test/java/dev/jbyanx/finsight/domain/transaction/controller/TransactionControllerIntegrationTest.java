@@ -86,7 +86,7 @@ class TransactionControllerIntegrationTest {
     }
 
     @Test
-    void dadoTransaccionQueExcedeCupo_cuandoCrearTransaccion_entoncesRetorna401()
+    void dadoTransaccionQueExcedeCupo_cuandoCrearTransaccion_entoncesRetorna400()
             throws Exception {
         CreditCard card = creditCardRepository.save(CreditCard.builder()
                 .user(testUser)
@@ -109,7 +109,7 @@ class TransactionControllerIntegrationTest {
                         "installments": 1
                     }
                 """.formatted(card.getId())))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -143,7 +143,7 @@ class TransactionControllerIntegrationTest {
     }
 
     @Test
-    void dadoCuentaSinSaldoSuficiente_cuandoCrearTransaccion_entoncesRetorna401()
+    void dadoCuentaSinSaldoSuficiente_cuandoCrearTransaccion_entoncesRetorna400()
             throws Exception {
         SavingsAccount account = savingsAccountRepository.save(SavingsAccount.builder()
                 .user(testUser)
@@ -164,7 +164,7 @@ class TransactionControllerIntegrationTest {
                         "installments": 1
                     }
                 """.formatted(account.getId())))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
