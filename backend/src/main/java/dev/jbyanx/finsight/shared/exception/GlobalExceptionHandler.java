@@ -31,6 +31,12 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvoiceAlreadyPaidException.class)
+    public ResponseEntity<ErrorResponse> handleInvoiceAlreadyPaid(
+            InvoiceAlreadyPaidException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "Invoice Already Paid", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(InsufficientFundsException.class)
     public ResponseEntity<ErrorResponse> handleInsufficientFunds(
             InsufficientFundsException ex, HttpServletRequest request) {
