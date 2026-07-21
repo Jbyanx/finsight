@@ -105,4 +105,24 @@ public class SavingsAccountController {
         savingsAccountService.deletePocket(principal.getId(), accountId, pocketId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{accountId}/pockets/{pocketId}/deposit")
+    public ResponseEntity<PocketResponse> depositToPocket(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String accountId,
+            @PathVariable String pocketId,
+            @RequestBody @Valid PocketAmountRequest request) {
+        return ResponseEntity.ok(savingsAccountService.depositToPocket(
+                principal.getId(), accountId, pocketId, request));
+    }
+
+    @PostMapping("/{accountId}/pockets/{pocketId}/withdraw")
+    public ResponseEntity<PocketResponse> withdrawFromPocket(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String accountId,
+            @PathVariable String pocketId,
+            @RequestBody @Valid PocketAmountRequest request) {
+        return ResponseEntity.ok(savingsAccountService.withdrawFromPocket(
+                principal.getId(), accountId, pocketId, request));
+    }
 }

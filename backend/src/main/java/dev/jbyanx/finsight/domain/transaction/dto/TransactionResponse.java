@@ -18,6 +18,14 @@ public class TransactionResponse {
     private LocalDateTime date;
     private OriginType originType;
     private String originName;
+
+    /** Nombre del bolsillo del que salió el dinero (null si no aplica). */
+    private String pocketName;
+
+    /** true = pagado con dinero de un tercero. NO es un gasto del usuario. */
+    private boolean thirdParty;
+    private String thirdPartyOwnerName;
+
     private boolean shared;
     private String sharedWithName;
     private BigDecimal sharedAmount;

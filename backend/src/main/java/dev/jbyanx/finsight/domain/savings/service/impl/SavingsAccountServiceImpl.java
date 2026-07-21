@@ -10,7 +10,8 @@ import dev.jbyanx.finsight.domain.savings.repository.PocketRepository;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
 import dev.jbyanx.finsight.domain.savings.service.SavingsAccountService;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
+import dev.jbyanx.finsight.shared.exception.InsufficientFundsException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,11 +46,13 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public SavingsAccountResponse getById(String userId, String accountId) {
         return savingsAccountMapper.toResponse(findAccountBelongingToUser(userId, accountId));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SavingsAccountResponse> getAllByUser(String userId) {
         return savingsAccountMapper.toResponseList(
                 savingsAccountRepository.findAllByUserIdAndActiveTrue(userId)
@@ -101,12 +104,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         if (request.isRemoveGoal()) {
             pocket.setGoalAmount(null);
         } else if (request.getGoalAmount() != null) {
-            // Regla de negocio: la meta no puede ser menor al saldo actual
-            if (request.getGoalAmount().compareTo(pocket.getBalance()) < 0) {
-                throw new UnauthorizedException(
-                        "Goal amount cannot be less than current balance: "
-                                + pocket.getBalance());
-            }
+            validateGoalNotBelowBalance(request.getGoalAmount(), pocket);
             pocket.setGoalAmount(request.getGoalAmount());
         }
 
@@ -127,10 +125,21 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
                                        PocketRequest request) {
         SavingsAccount account = findAccountBelongingToUser(userId, accountId);
 
+        BigDecimal initialBalance = request.getBalance() != null
+                ? request.getBalance() : BigDecimal.ZERO;
+
+        // Regla de negocio: un bolsillo RESERVA parte del disponible; no crea dinero.
+        // Su saldo inicial no puede superar lo que está libre en la cuenta.
+        BigDecimal available = account.getAvailableBalance();
+        if (initialBalance.compareTo(available) > 0) {
+            throw new InsufficientFundsException(
+                    "Pocket balance exceeds available account balance: " + available);
+        }
+
         Pocket pocket = Pocket.builder()
                 .savingsAccount(account)
                 .name(request.getName())
-                .balance(request.getBalance() != null ? request.getBalance() : BigDecimal.ZERO)
+                .balance(initialBalance)
                 .goalAmount(request.getGoalAmount())
                 .build();
 
@@ -147,9 +156,23 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
 
         pocket.setName(request.getName());
-        if (request.getGoalAmount() != null) pocket.setGoalAmount(request.getGoalAmount());
+        if (request.getGoalAmount() != null) {
+            validateGoalNotBelowBalance(request.getGoalAmount(), pocket);
+            pocket.setGoalAmount(request.getGoalAmount());
+        }
 
         return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
+    }
+
+    // Regla de negocio: la meta de un bolsillo no puede ser menor a su saldo actual.
+    // Aplica tanto en PATCH como en PUT para no dejar el bolsillo en un estado
+    // inconsistente (meta ya superada) segun por que endpoint se edite.
+    private void validateGoalNotBelowBalance(BigDecimal goalAmount, Pocket pocket) {
+        if (goalAmount.compareTo(pocket.getBalance()) < 0) {
+            throw new BusinessRuleException(
+                    "Goal amount cannot be less than current balance: "
+                            + pocket.getBalance());
+        }
     }
 
     @Override
@@ -162,6 +185,49 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
 
         pocket.setActive(false);
         pocketRepository.save(pocket);
+    }
+
+    @Override
+    @Transactional
+    public PocketResponse depositToPocket(String userId, String accountId,
+                                          String pocketId, PocketAmountRequest request) {
+        SavingsAccount account = findAccountBelongingToUser(userId, accountId);
+
+        Pocket pocket = pocketRepository.findByIdAndSavingsAccountId(pocketId, accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
+
+        // Depositar mueve plata del disponible de la cuenta al bolsillo.
+        // No se puede reservar más de lo que está libre. account.balance NO cambia.
+        BigDecimal available = account.getAvailableBalance();
+        if (request.getAmount().compareTo(available) > 0) {
+            throw new InsufficientFundsException(
+                    "Deposit exceeds available account balance: " + available);
+        }
+
+        pocket.setBalance(pocket.getBalance().add(request.getAmount()));
+
+        return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
+    }
+
+    @Override
+    @Transactional
+    public PocketResponse withdrawFromPocket(String userId, String accountId,
+                                             String pocketId, PocketAmountRequest request) {
+        findAccountBelongingToUser(userId, accountId);
+
+        Pocket pocket = pocketRepository.findByIdAndSavingsAccountId(pocketId, accountId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
+
+        // Retirar devuelve plata del bolsillo al disponible de la cuenta.
+        // No se puede sacar más de lo que hay en el bolsillo. account.balance NO cambia.
+        if (request.getAmount().compareTo(pocket.getBalance()) > 0) {
+            throw new InsufficientFundsException(
+                    "Withdrawal exceeds pocket balance: " + pocket.getBalance());
+        }
+
+        pocket.setBalance(pocket.getBalance().subtract(request.getAmount()));
+
+        return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
     }
 
     private SavingsAccount findAccountBelongingToUser(String userId, String accountId) {

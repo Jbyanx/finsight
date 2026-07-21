@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.telegram.service.impl;
 
+import dev.jbyanx.finsight.domain.ai.memory.ConversationService;
 import dev.jbyanx.finsight.domain.auth.entity.User;
 import dev.jbyanx.finsight.domain.auth.repository.UserRepository;
 import dev.jbyanx.finsight.domain.telegram.dto.LinkCodeResponse;
@@ -25,6 +26,7 @@ public class TelegramLinkServiceImpl implements TelegramLinkService {
     private final TelegramLinkRepository telegramLinkRepository;
     private final LinkCodeRepository linkCodeRepository;
     private final UserRepository userRepository;
+    private final ConversationService conversationService;
 
     @Value("${telegram.link-code.chars}")
     private String CHARS; // caracteres para el código (sin O,0,I,1)
@@ -68,10 +70,20 @@ public class TelegramLinkServiceImpl implements TelegramLinkService {
                     "This Telegram account is already linked to another user");
         }
 
+        User user = linkCode.getUser();
+
+        if (telegramLinkRepository.findByUserId(user.getId()).isPresent()) {
+            throw new UnauthorizedException(
+                    "This user is already linked to a Telegram chat. Unlink it first.");
+        }
+
         linkCode.setUsed(true);
         linkCodeRepository.save(linkCode);
 
-        User user = linkCode.getUser();
+        // El chatId pudo haber estado vinculado a OTRA cuenta antes. Su historial y
+        // cualquier acción pendiente siguen vivos en Mongo (la Conversation se indexa
+        // por chatId). Sin esta purga, ese estado se filtraría a la cuenta nueva.
+        conversationService.deleteByChatId(String.valueOf(chatId));
 
         telegramLinkRepository.save(TelegramLink.builder()
                 .user(user)
@@ -94,8 +106,23 @@ public class TelegramLinkServiceImpl implements TelegramLinkService {
     @Override
     @Transactional
     public void unlink(String userId) {
-        telegramLinkRepository.findByUserId(userId)
-                .ifPresent(telegramLinkRepository::delete);
+        telegramLinkRepository.findByUserId(userId).ifPresent(link -> {
+            Long chatId = link.getChatId();
+            telegramLinkRepository.delete(link);
+            conversationService.deleteByChatId(String.valueOf(chatId));
+        });
+    }
+
+    @Override
+    @Transactional
+    public boolean unlinkByChatId(Long chatId) {
+        return telegramLinkRepository.findByChatId(chatId)
+                .map(link -> {
+                    telegramLinkRepository.delete(link);
+                    conversationService.deleteByChatId(String.valueOf(chatId));
+                    return true;
+                })
+                .orElse(false);
     }
 
     private String generateRandomCode() {

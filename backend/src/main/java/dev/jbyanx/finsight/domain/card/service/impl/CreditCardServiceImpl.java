@@ -11,10 +11,10 @@ import dev.jbyanx.finsight.domain.card.repository.CreditCardRepository;
 import dev.jbyanx.finsight.domain.card.service.CreditCardService;
 import dev.jbyanx.finsight.shared.exception.InvalidCreditLimitException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -51,12 +51,7 @@ public class CreditCardServiceImpl implements CreditCardService {
 
         if (request.getNickname() != null) card.setNickname(request.getNickname());
         if (request.getCreditLimit() != null) {
-            // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado
-            if (request.getCreditLimit().compareTo(card.getUsedAmount()) < 0) {
-                throw new InvalidCreditLimitException(
-                        "New credit limit cannot be less than current used amount: "
-                                + card.getUsedAmount());
-            }
+            validateCreditLimitNotBelowUsed(request.getCreditLimit(), card);
             card.setCreditLimit(request.getCreditLimit());
         }
         if (request.getCutOffDay() != null) card.setCutOffDay(request.getCutOffDay());
@@ -83,6 +78,8 @@ public class CreditCardServiceImpl implements CreditCardService {
     public CreditCardResponse update(String userId, String cardId, CreditCardRequest request) {
         CreditCard card = findCardBelongingToUser(userId, cardId);
 
+        validateCreditLimitNotBelowUsed(request.getCreditLimit(), card);
+
         card.setInstitution(request.getInstitution());
         card.setNickname(request.getNickname());
         card.setCreditLimit(request.getCreditLimit());
@@ -105,6 +102,15 @@ public class CreditCardServiceImpl implements CreditCardService {
         return creditCardMapper.toResponseList(
                 creditCardRepository.findAllByUserIdOrderByUtilizationAsc(userId)
         );
+    }
+
+    // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado.
+    // Aplica tanto en PATCH como en PUT: bajar el cupo por debajo de lo usado
+    // dejaría la tarjeta con utilización > 100%, un estado imposible.
+    private void validateCreditLimitNotBelowUsed(BigDecimal newLimit, CreditCard card) {
+        if (newLimit.compareTo(card.getUsedAmount()) < 0) {
+            throw new InvalidCreditLimitException(newLimit, card.getUsedAmount());
+        }
     }
 
     // Helper — verifica que la tarjeta existe Y pertenece al usuario

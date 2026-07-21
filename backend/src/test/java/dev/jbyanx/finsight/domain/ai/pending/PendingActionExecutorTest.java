@@ -3,6 +3,9 @@ package dev.jbyanx.finsight.domain.ai.pending;
 import dev.jbyanx.finsight.domain.debt.dto.DebtPaymentRequest;
 import dev.jbyanx.finsight.domain.debt.dto.FixedDebtResponse;
 import dev.jbyanx.finsight.domain.debt.service.FixedDebtService;
+import dev.jbyanx.finsight.domain.transaction.dto.TransactionRequest;
+import dev.jbyanx.finsight.domain.transaction.dto.TransactionResponse;
+import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +23,7 @@ import static org.mockito.Mockito.when;
 class PendingActionExecutorTest {
 
     @Mock private FixedDebtService fixedDebtService;
+    @Mock private TransactionService transactionService;
     @InjectMocks private PendingActionExecutor executor;
 
     private PendingAction payAction() {
@@ -28,7 +32,7 @@ class PendingActionExecutorTest {
     }
 
     @Test
-    void execute_PayDebt_Partial_ReturnsRemaining() {
+    void execute_PayDebt_Partial_ReturnsFormattedRemaining() {
         when(fixedDebtService.applyPayment(eq("user-1"), eq("d-1"), any(DebtPaymentRequest.class)))
                 .thenReturn(FixedDebtResponse.builder()
                         .institution("Banco de Bogotá")
@@ -39,12 +43,13 @@ class PendingActionExecutorTest {
 
         String result = executor.execute("user-1", payAction());
 
-        assertTrue(result.contains("950000"));
+        assertTrue(result.contains("$950.000"));
+        assertTrue(result.contains("$250.000"));
         assertTrue(result.contains("15"));
     }
 
     @Test
-    void execute_PayDebt_PaidOff_Celebrates() {
+    void execute_PayDebt_PaidOff_Confirms() {
         when(fixedDebtService.applyPayment(eq("user-1"), eq("d-1"), any(DebtPaymentRequest.class)))
                 .thenReturn(FixedDebtResponse.builder()
                         .institution("Banco de Bogotá")
@@ -55,6 +60,29 @@ class PendingActionExecutorTest {
         String result = executor.execute("user-1", payAction());
 
         assertTrue(result.toLowerCase().contains("saldaste"));
+    }
+
+    @Test
+    void execute_RegisterTransaction_CallsServiceAndFormatsAmount() {
+        when(transactionService.create(eq("user-1"), any(TransactionRequest.class)))
+                .thenReturn(TransactionResponse.builder()
+                        .description("Par de tenis")
+                        .amount(new BigDecimal("200000"))
+                        .originName("NuCard")
+                        .build());
+
+        PendingAction action = PendingAction.of(PendingActionExecutor.REGISTER_TRANSACTION, null)
+                .with("description", "Par de tenis")
+                .with("amount", "200000")
+                .with("originType", "CREDIT_CARD")
+                .with("creditCardId", "card-1")
+                .with("installments", "1");
+
+        String result = executor.execute("user-1", action);
+
+        assertTrue(result.contains("$200.000"));
+        assertTrue(result.contains("Par de tenis"));
+        assertTrue(result.contains("NuCard"));
     }
 
     @Test

@@ -1,5 +1,6 @@
 name: CI
 
+# Valida cada PR antes del merge. No despliega nada.
 on:
   pull_request:
     branches:
@@ -52,6 +53,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      # Con Liquibase activo y ddl-auto=validate, este paso tambien verifica que
+      # las migraciones apliquen sobre una BD limpia y que el schema resultante
+      # valide contra las entidades JPA. Es el escenario de produccion, en cada PR.
       - name: Build and test
         working-directory: backend
         env:

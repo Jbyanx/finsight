@@ -57,7 +57,24 @@ public class SavingsAccount {
         if (balance == null) balance = BigDecimal.ZERO;
     }
 
+    /** Dinero de TERCEROS en esta cuenta. Nunca es del usuario. */
+    public BigDecimal getSharedTotal() {
+        if (shared) return balance;              // cuenta entera de terceros/conjunta
+        return pockets.stream()
+                .filter(Pocket::isActive)
+                .filter(Pocket::isShared)
+                .map(Pocket::getBalance)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** Patrimonio REAL del usuario: to do menos lo ajeno. Esto es lo que suma. */
+    public BigDecimal getOwnBalance() {
+        return balance.subtract(getSharedTotal());
+    }
+
+    /** Dinero LIBRE: ni ajeno ni reservado en bolsillos propios. */
     public BigDecimal getAvailableBalance() {
+        if (shared) return BigDecimal.ZERO;
         BigDecimal pocketsTotal = pockets.stream()
                 .filter(Pocket::isActive)
                 .map(Pocket::getBalance)

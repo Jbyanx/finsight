@@ -4,13 +4,17 @@ import dev.jbyanx.finsight.domain.transaction.entity.Transaction.OriginType;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Getter
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class TransactionRequest {
 
     @NotBlank(message = "Description is required")
@@ -28,6 +32,13 @@ public class TransactionRequest {
 
     private String creditCardId;
     private String savingsAccountId;
+
+    /**
+     * Bolsillo del que sale el dinero (opcional, solo con originType = SAVINGS).
+     * Si el bolsillo es compartido, el gasto se paga con dinero de un tercero y
+     * no afecta el patrimonio del usuario.
+     */
+    private String pocketId;
 
     private boolean shared;
     private String sharedWithName;

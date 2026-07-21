@@ -31,6 +31,32 @@ public class GlobalExceptionHandler {
                 ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvoiceAlreadyPaidException.class)
+    public ResponseEntity<ErrorResponse> handleInvoiceAlreadyPaid(
+            InvoiceAlreadyPaidException ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "Invoice Already Paid", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCreditLimitException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCreditLimit(
+            InvalidCreditLimitException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Invalid Credit Limit", ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientFunds(
+            InsufficientFundsException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Insufficient Funds",
+                ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRule(
+            BusinessRuleException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Business Rule Violation",
+                ex.getMessage(), request);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMissingBody(
             HttpMessageNotReadableException ex, HttpServletRequest request) {

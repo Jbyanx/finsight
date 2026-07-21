@@ -40,6 +40,7 @@ public class AiServiceImpl implements AiService {
     private final DebtTools debtTools;
     private final SummaryTools summaryTools;
     private final DebtWriteTools debtWriteTools;
+    private final TransactionWriteTools transactionWriteTools;
 
     @Override
     public BotReply chat(String chatId, String userId, String message) {
@@ -53,7 +54,8 @@ public class AiServiceImpl implements AiService {
         String response = chatClient.prompt()
                 .system(systemPrompt)
                 .user(message)
-                .tools(cashTools, cardTools, debtTools, summaryTools, debtWriteTools)
+                .tools(cashTools, cardTools, debtTools, summaryTools,
+                        debtWriteTools, transactionWriteTools)
                 .toolContext(Map.of(
                         ToolContextKeys.USER_ID, userId,
                         ToolContextKeys.CHAT_ID, chatId))

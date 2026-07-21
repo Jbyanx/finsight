@@ -12,6 +12,7 @@ import dev.jbyanx.finsight.domain.income.entity.IncomeSource.IncomeFrequency;
 import dev.jbyanx.finsight.domain.income.repository.IncomeSourceRepository;
 import dev.jbyanx.finsight.domain.income.repository.OperationalExpenseRepository;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoiceRepository;
+import dev.jbyanx.finsight.domain.savings.entity.SavingsAccount;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -72,7 +73,7 @@ public class FinancialServiceImpl implements FinancialService {
         // --- Cuentas y efectivo ---
         BigDecimal totalSavings = savingsAccountRepository
                 .findAllByUserIdAndActiveTrue(userId).stream()
-                .map(a -> a.isShared() ? BigDecimal.ZERO : a.getBalance())
+                .map(SavingsAccount::getOwnBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalCash = cashRepository.findByUserId(userId)

@@ -1,0 +1,400 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Schema inicial de Finsight.
+
+      El DDL es EXACTAMENTE el que genera Hibernate a partir de las entidades JPA
+      (capturado del arranque con ddl-auto=update). Esto importa: producción corre
+      con ddl-auto=validate, y cualquier diferencia de tipo, longitud o nullability
+      impide que la aplicación arranque.
+
+      Incluye ya el modelo de bolsillos compartidos (pockets.shared) y el gasto con
+      dinero de terceros (transactions.pocket_id / third_party): la primera
+      migración nace con el dominio correcto.
+
+      Orden de creación: primero las tablas destino de FKs (users), luego el resto.
+    -->
+
+    <!-- ================= users ================= -->
+    <changeSet id="001-01-users" author="jbyanx">
+        <sql>
+            create table users (
+                                   id varchar(255) not null,
+                                   active boolean not null,
+                                   created_at timestamp(6) not null,
+                                   email varchar(255) not null,
+                                   last_login timestamp(6),
+                                   name varchar(255) not null,
+                                   password_hash varchar(60),
+                                   picture_url varchar(255),
+                                   provider varchar(255) not null,
+                                   provider_id varchar(255),
+                                   primary key (id)
+            );
+            alter table users add constraint UK6dotkott2kjsp8vw4d0m25fb7 unique (email);
+        </sql>
+        <rollback>
+            <sql>drop table users;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= tokens ================= -->
+    <changeSet id="001-02-tokens" author="jbyanx">
+        <sql>
+            create table tokens (
+                                    id varchar(255) not null,
+                                    created_at timestamp(6) not null,
+                                    device_info varchar(255),
+                                    expires_at timestamp(6) not null,
+                                    revoked boolean not null,
+                                    token varchar(500) not null,
+                                    type varchar(255) not null check (type in ('ACCESS','REFRESH')),
+                                    user_id varchar(255) not null,
+                                    primary key (id)
+            );
+            alter table tokens add constraint UKna3v9f8s7ucnj16tylrs822qj unique (token);
+            alter table tokens add constraint FK2dylsfo39lgjyqml2tbe0b0ss
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table tokens;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= credit_cards ================= -->
+    <changeSet id="001-03-credit-cards" author="jbyanx">
+        <sql>
+            create table credit_cards (
+                                          id varchar(255) not null,
+                                          active boolean not null,
+                                          created_at timestamp(6) not null,
+                                          credit_limit numeric(15,2) not null,
+                                          cut_off_day integer not null,
+                                          institution varchar(100) not null,
+                                          nickname varchar(100),
+                                          payment_due_day integer not null,
+                                          used_amount numeric(15,2) not null,
+                                          user_id varchar(255) not null,
+                                          primary key (id)
+            );
+            alter table credit_cards add constraint FKn1thfi0pev97g7g4oreo6g4yw
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table credit_cards;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= savings_accounts ================= -->
+    <changeSet id="001-04-savings-accounts" author="jbyanx">
+        <sql>
+            create table savings_accounts (
+                                              id varchar(255) not null,
+                                              active boolean not null,
+                                              balance numeric(15,2) not null,
+                                              created_at timestamp(6) not null,
+                                              institution varchar(100) not null,
+                                              nickname varchar(100),
+                                              shared boolean not null,
+                                              shared_owner_name varchar(100),
+                                              user_id varchar(255) not null,
+                                              primary key (id)
+            );
+            alter table savings_accounts add constraint FK3ekip6alekbambrkh1emi77vy
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table savings_accounts;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= pockets =================
+         shared/shared_owner_name: una cuenta propia puede alojar dinero de
+         terceros. El dinero compartido vive en el bolsillo, no en la cuenta. -->
+    <changeSet id="001-05-pockets" author="jbyanx">
+        <sql>
+            create table pockets (
+                                     id varchar(255) not null,
+                                     active boolean not null,
+                                     balance numeric(15,2) not null,
+                                     created_at timestamp(6) not null,
+                                     goal_amount numeric(15,2),
+                                     name varchar(100) not null,
+                                     shared boolean not null,
+                                     shared_owner_name varchar(100),
+                                     savings_account_id varchar(255) not null,
+                                     primary key (id)
+            );
+            alter table pockets add constraint FKewfh8es1uywhcg3l8o2bypufj
+                foreign key (savings_account_id) references savings_accounts;
+        </sql>
+        <rollback>
+            <sql>drop table pockets;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= cash ================= -->
+    <changeSet id="001-06-cash" author="jbyanx">
+        <sql>
+            create table cash (
+                                  id varchar(255) not null,
+                                  balance numeric(15,2) not null,
+                                  updated_at timestamp(6) not null,
+                                  user_id varchar(255) not null,
+                                  primary key (id)
+            );
+            alter table cash add constraint UKdf881k7it0h02bjyi1u5asyeb unique (user_id);
+            alter table cash add constraint FK1wp8eedfah9xgn0hxump81d6g
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table cash;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= fixed_debts ================= -->
+    <changeSet id="001-07-fixed-debts" author="jbyanx">
+        <sql>
+            create table fixed_debts (
+                                         id varchar(255) not null,
+                                         active boolean not null,
+                                         created_at timestamp(6) not null,
+                                         description varchar(255),
+                                         institution varchar(100) not null,
+                                         interest_rate numeric(38,2),
+                                         monthly_payment numeric(15,2) not null,
+                                         payment_due_day integer not null,
+                                         remaining_balance numeric(15,2) not null,
+                                         total_amount numeric(15,2) not null,
+                                         user_id varchar(255) not null,
+                                         primary key (id)
+            );
+            alter table fixed_debts add constraint FK5bfiteqgy4hjnhn0hfl9ouwtx
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table fixed_debts;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= income_sources ================= -->
+    <changeSet id="001-08-income-sources" author="jbyanx">
+        <sql>
+            create table income_sources (
+                                            id varchar(255) not null,
+                                            active boolean not null,
+                                            created_at timestamp(6) not null,
+                                            description varchar(255) not null,
+                                            estimated_amount numeric(15,2),
+                                            frequency varchar(255) check (frequency in ('PER_SHIFT','WEEKLY','MONTHLY')),
+                                            occurrences_per_month integer,
+                                            type varchar(255) not null check (type in ('FIXED','VARIABLE')),
+                                            user_id varchar(255) not null,
+                                            primary key (id)
+            );
+            alter table income_sources add constraint FKqoiqfhrdwfb2va20hf8l6gbrx
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table income_sources;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= income_entries ================= -->
+    <changeSet id="001-09-income-entries" author="jbyanx">
+        <sql>
+            create table income_entries (
+                                            id varchar(255) not null,
+                                            amount numeric(15,2) not null,
+                                            created_at timestamp(6) not null,
+                                            description varchar(255),
+                                            destination_type varchar(255) not null check (destination_type in ('CASH','SAVINGS','POCKET')),
+                                            received_at timestamp(6) not null,
+                                            income_source_id varchar(255),
+                                            pocket_id varchar(255),
+                                            savings_account_id varchar(255),
+                                            user_id varchar(255) not null,
+                                            primary key (id)
+            );
+            alter table income_entries add constraint FK5tqapi72l6vaugqijsk9ps8u8
+                foreign key (income_source_id) references income_sources;
+            alter table income_entries add constraint FKowydhr8owj00ajnj5x61y3c76
+                foreign key (pocket_id) references pockets;
+            alter table income_entries add constraint FKflg5pwjy334wg1chlcs951orq
+                foreign key (savings_account_id) references savings_accounts;
+            alter table income_entries add constraint FKkeu0ggj7ho03aut56ycnl2nd7
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table income_entries;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= operational_expenses ================= -->
+    <changeSet id="001-10-operational-expenses" author="jbyanx">
+        <sql>
+            create table operational_expenses (
+                                                  id varchar(255) not null,
+                                                  active boolean not null,
+                                                  created_at timestamp(6) not null,
+                                                  description varchar(255) not null,
+                                                  estimated_amount numeric(15,2) not null,
+                                                  frequency varchar(255) not null check (frequency in ('PER_SHIFT','WEEKLY','MONTHLY')),
+                                                  occurrences_per_month integer,
+                                                  income_source_id varchar(255),
+                                                  user_id varchar(255) not null,
+                                                  primary key (id)
+            );
+            alter table operational_expenses add constraint FKh4504o1rfgfomidt72bb6vcqo
+                foreign key (income_source_id) references income_sources;
+            alter table operational_expenses add constraint FKmhicigib8v62nx4ckp8jeiojx
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table operational_expenses;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= invoices ================= -->
+    <changeSet id="001-11-invoices" author="jbyanx">
+        <sql>
+            create table invoices (
+                                      id varchar(255) not null,
+                                      active boolean not null,
+                                      amount numeric(15,2) not null,
+                                      created_at timestamp(6) not null,
+                                      description varchar(255) not null,
+                                      due_day integer not null,
+                                      frequency varchar(255) not null check (frequency in ('MONTHLY','BIMONTHLY','ANNUAL')),
+                                      is_own boolean not null,
+                                      payer_note varchar(255),
+                                      payment_method varchar(255) check (payment_method in ('CREDIT_CARD','CASH','TRANSFER')),
+                                      responsible_name varchar(100),
+                                      credit_card_id varchar(255),
+                                      user_id varchar(255) not null,
+                                      primary key (id)
+            );
+            alter table invoices add constraint FK1kkkfobmc1tndj7ksbwfykfdw
+                foreign key (credit_card_id) references credit_cards;
+            alter table invoices add constraint FKbwr4d4vyqf2bkoetxtt8j9dx7
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table invoices;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= invoice_payments ================= -->
+    <changeSet id="001-12-invoice-payments" author="jbyanx">
+        <sql>
+            create table invoice_payments (
+                                              id varchar(255) not null,
+                                              amount_paid numeric(15,2) not null,
+                                              created_at timestamp(6) not null,
+                                              notes varchar(255),
+                                              paid_at timestamp(6),
+                                              period_month integer not null,
+                                              period_year integer not null,
+                                              status varchar(255) not null check (status in ('PENDING','PAID','OVERDUE')),
+                                              voucher_type varchar(255) check (voucher_type in ('IMAGE','PDF')),
+                                              voucher_url varchar(500),
+                                              invoice_id varchar(255) not null,
+                                              primary key (id)
+            );
+            alter table invoice_payments add constraint FKaa9if3io1iupfuqgsm0fbuch9
+                foreign key (invoice_id) references invoices;
+        </sql>
+        <rollback>
+            <sql>drop table invoice_payments;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= transactions =================
+         pocket_id + third_party: permiten pagar con dinero de un tercero alojado
+         en un bolsillo compartido, sin afectar el patrimonio del usuario. -->
+    <changeSet id="001-13-transactions" author="jbyanx">
+        <sql>
+            create table transactions (
+                                          id varchar(255) not null,
+                                          amount numeric(15,2) not null,
+                                          category varchar(100),
+                                          created_at timestamp(6) not null,
+                                          current_installment integer not null,
+                                          date timestamp(6) not null,
+                                          description varchar(255) not null,
+                                          installments integer not null,
+                                          origin_type varchar(255) not null check (origin_type in ('CREDIT_CARD','SAVINGS','CASH')),
+                                          payment_deadline timestamp(6),
+                                          shared boolean not null,
+                                          shared_amount numeric(15,2),
+                                          shared_with_name varchar(100),
+                                          status varchar(255) not null check (status in ('PENDING','COMPLETED')),
+                                          third_party boolean not null,
+                                          third_party_owner_name varchar(100),
+                                          credit_card_id varchar(255),
+                                          pocket_id varchar(255),
+                                          savings_account_id varchar(255),
+                                          user_id varchar(255) not null,
+                                          primary key (id)
+            );
+            alter table transactions add constraint FK31gxchuwl0rc68xorwsw4p3o3
+                foreign key (credit_card_id) references credit_cards;
+            alter table transactions add constraint FKhl82t1t3sf6hdowh9qcmnuw1l
+                foreign key (pocket_id) references pockets;
+            alter table transactions add constraint FKm275umv2emqqxdmw816q8lx3v
+                foreign key (savings_account_id) references savings_accounts;
+            alter table transactions add constraint FKqwv7rmvc8va8rep7piikrojds
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table transactions;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= link_codes ================= -->
+    <changeSet id="001-14-link-codes" author="jbyanx">
+        <sql>
+            create table link_codes (
+                                        id varchar(255) not null,
+                                        code varchar(6) not null,
+                                        expires_at timestamp(6) not null,
+                                        used boolean not null,
+                                        user_id varchar(255) not null,
+                                        primary key (id)
+            );
+            alter table link_codes add constraint UKk9h0kdipjdda3ph4kkbp4c7mi unique (code);
+            alter table link_codes add constraint FKgqcy6vxfyi4sbwrafp4wni505
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table link_codes;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- ================= telegram_links =================
+         1:1 estricto: un usuario tiene un único chat y viceversa. -->
+    <changeSet id="001-15-telegram-links" author="jbyanx">
+        <sql>
+            create table telegram_links (
+                                            id varchar(255) not null,
+                                            chat_id bigint not null,
+                                            linked_at timestamp(6) not null,
+                                            user_id varchar(255) not null,
+                                            primary key (id)
+            );
+            alter table telegram_links add constraint UKs6wxqc9f30ax2e1en6lpc4fa8 unique (chat_id);
+            alter table telegram_links add constraint UKj47o8scau2ve552pa731873o2 unique (user_id);
+            alter table telegram_links add constraint FKiqa6wke1clubbjtjmuo8jp75d
+                foreign key (user_id) references users;
+        </sql>
+        <rollback>
+            <sql>drop table telegram_links;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
