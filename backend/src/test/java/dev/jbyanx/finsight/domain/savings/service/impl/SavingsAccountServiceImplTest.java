@@ -218,6 +218,48 @@ class SavingsAccountServiceImplTest {
                 () -> savingsAccountService.patchPocket("user-1", "acc-1", "pocket-bad", req));
     }
 
+    // ---------- updatePocket / PUT (misma regla que patchPocket) ----------
+
+    @Test
+    void updatePocket_GoalLessThanBalance_ThrowsException_PocketUntouched() {
+        // Bolsillo con saldo 100000; PUT intenta fijar meta 50000
+        PocketRequest req = new PocketRequest();
+        ReflectionTestUtils.setField(req, "name", "Renombrado");
+        ReflectionTestUtils.setField(req, "goalAmount", new BigDecimal("50000"));
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(mockAccount));
+        when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
+                .thenReturn(Optional.of(mockPocket));
+
+        assertThrows(BusinessRuleException.class,
+                () -> savingsAccountService.updatePocket("user-1", "acc-1", "pocket-1", req));
+
+        // El bolsillo queda intacto: la validacion corre antes de tocar la meta
+        assertNull(mockPocket.getGoalAmount());
+        verify(pocketRepository, never()).save(any());
+    }
+
+    @Test
+    void updatePocket_ValidGoal_Updates() {
+        PocketRequest req = new PocketRequest();
+        ReflectionTestUtils.setField(req, "name", "Matricula U");
+        ReflectionTestUtils.setField(req, "goalAmount", new BigDecimal("200000"));
+
+        when(savingsAccountRepository.findByIdAndUserId("acc-1", "user-1"))
+                .thenReturn(Optional.of(mockAccount));
+        when(pocketRepository.findByIdAndSavingsAccountId("pocket-1", "acc-1"))
+                .thenReturn(Optional.of(mockPocket));
+        when(pocketRepository.save(mockPocket)).thenReturn(mockPocket);
+        when(savingsAccountMapper.toPocketResponse(mockPocket))
+                .thenReturn(PocketResponse.builder().build());
+
+        savingsAccountService.updatePocket("user-1", "acc-1", "pocket-1", req);
+
+        assertEquals(new BigDecimal("200000"), mockPocket.getGoalAmount());
+        verify(pocketRepository).save(mockPocket);
+    }
+
     // ---------- createPocket / deletes ----------
 
     @Test

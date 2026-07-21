@@ -104,12 +104,7 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
         if (request.isRemoveGoal()) {
             pocket.setGoalAmount(null);
         } else if (request.getGoalAmount() != null) {
-            // Regla de negocio: la meta no puede ser menor al saldo actual
-            if (request.getGoalAmount().compareTo(pocket.getBalance()) < 0) {
-                throw new BusinessRuleException(
-                        "Goal amount cannot be less than current balance: "
-                                + pocket.getBalance());
-            }
+            validateGoalNotBelowBalance(request.getGoalAmount(), pocket);
             pocket.setGoalAmount(request.getGoalAmount());
         }
 
@@ -161,9 +156,23 @@ public class SavingsAccountServiceImpl implements SavingsAccountService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pocket", pocketId));
 
         pocket.setName(request.getName());
-        if (request.getGoalAmount() != null) pocket.setGoalAmount(request.getGoalAmount());
+        if (request.getGoalAmount() != null) {
+            validateGoalNotBelowBalance(request.getGoalAmount(), pocket);
+            pocket.setGoalAmount(request.getGoalAmount());
+        }
 
         return savingsAccountMapper.toPocketResponse(pocketRepository.save(pocket));
+    }
+
+    // Regla de negocio: la meta de un bolsillo no puede ser menor a su saldo actual.
+    // Aplica tanto en PATCH como en PUT para no dejar el bolsillo en un estado
+    // inconsistente (meta ya superada) segun por que endpoint se edite.
+    private void validateGoalNotBelowBalance(BigDecimal goalAmount, Pocket pocket) {
+        if (goalAmount.compareTo(pocket.getBalance()) < 0) {
+            throw new BusinessRuleException(
+                    "Goal amount cannot be less than current balance: "
+                            + pocket.getBalance());
+        }
     }
 
     @Override
