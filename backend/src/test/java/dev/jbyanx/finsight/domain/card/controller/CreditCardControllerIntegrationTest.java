@@ -97,6 +97,34 @@ class CreditCardControllerIntegrationTest {
     }
 
     @Test
+    void dadoCupoMenorAlUtilizado_cuandoPatchTarjeta_entoncesRetorna400() throws Exception {
+        // Regresión: esta regla de negocio caía en el fallback del handler y salía
+        // como 500 genérico, perdiendo el mensaje que el frontend muestra.
+        CreditCard card = creditCardRepository.save(CreditCard.builder()
+                .user(testUser)
+                .institution("Nu")
+                .creditLimit(new BigDecimal("1000000"))
+                .usedAmount(new BigDecimal("500000"))
+                .cutOffDay(3)
+                .paymentDueDay(23)
+                .build());
+
+        mockMvc.perform(patch("/api/v1/cards/" + card.getId())
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                {
+                    "creditLimit": 200000
+                }
+            """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Invalid Credit Limit"))
+                .andExpect(jsonPath("$.message")
+                        .value("Credit limit cannot be less than the amount already used. "
+                                + "Requested: 200000. Currently used: 500000"));
+    }
+
+    @Test
     void dadoOtroUsuario_cuandoAccederTarjetaAjena_entoncesRetorna404() throws Exception {
         User otherUser = userRepository.save(User.builder()
                 .email("other@finsight.dev")

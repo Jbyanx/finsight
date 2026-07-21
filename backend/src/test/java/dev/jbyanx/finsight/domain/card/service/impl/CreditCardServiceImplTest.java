@@ -123,6 +123,51 @@ class CreditCardServiceImplTest {
     }
 
     @Test
+    void update_Success() {
+        // PUT que sube el cupo por encima de lo usado
+        when(creditCardRepository.findByIdAndUserId("card-1", "user-1"))
+                .thenReturn(Optional.of(mockCard));
+        when(creditCardRepository.save(any(CreditCard.class))).thenReturn(mockCard);
+        when(creditCardMapper.toResponse(mockCard))
+                .thenReturn(CreditCardResponse.builder().id("card-1").build());
+
+        mockRequest = CreditCardRequest.builder()
+                .institution("Nu")
+                .nickname("Mi Tarjeta")
+                .creditLimit(new BigDecimal("500000")) // > usado 100000
+                .cutOffDay(3)
+                .paymentDueDay(23)
+                .build();
+
+        creditCardService.update("user-1", "card-1", mockRequest);
+
+        assertEquals(new BigDecimal("500000"), mockCard.getCreditLimit());
+        verify(creditCardRepository).save(mockCard);
+    }
+
+    @Test
+    void update_LimitLessThanUsedAmount_ThrowsException_CardUntouched() {
+        CreditCardRequest badRequest = CreditCardRequest.builder()
+                .institution("Nubank")             // valores nuevos que NO deben aplicarse
+                .nickname("Cambiada")
+                .creditLimit(new BigDecimal("50000")) // < usado 100000
+                .cutOffDay(9)
+                .paymentDueDay(29)
+                .build();
+
+        when(creditCardRepository.findByIdAndUserId("card-1", "user-1"))
+                .thenReturn(Optional.of(mockCard));
+
+        assertThrows(InvalidCreditLimitException.class,
+                () -> creditCardService.update("user-1", "card-1", badRequest));
+
+        // La tarjeta queda intacta: ningun setter corrio antes de la validacion
+        assertEquals("Nu", mockCard.getInstitution());
+        assertEquals(new BigDecimal("400000"), mockCard.getCreditLimit());
+        verify(creditCardRepository, never()).save(any());
+    }
+
+    @Test
     void getById_NotFound_ThrowsException() {
         when(creditCardRepository.findByIdAndUserId("card-bad", "user-1"))
                 .thenReturn(Optional.empty());

@@ -17,8 +17,9 @@ import dev.jbyanx.finsight.domain.transaction.entity.Transaction.OriginType;
 import dev.jbyanx.finsight.domain.transaction.mapper.TransactionMapper;
 import dev.jbyanx.finsight.domain.transaction.repository.TransactionRepository;
 import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
+import dev.jbyanx.finsight.shared.exception.InsufficientFundsException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
-import dev.jbyanx.finsight.shared.exception.UnauthorizedException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -54,7 +55,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         if (request.getPocketId() != null
                 && request.getOriginType() != OriginType.SAVINGS) {
-            throw new UnauthorizedException(
+            throw new BusinessRuleException(
                     "pocketId is only valid when originType is SAVINGS");
         }
 
@@ -70,7 +71,7 @@ public class TransactionServiceImpl implements TransactionService {
                 // Verifica que hay cupo disponible
                 if (creditCard.getUsedAmount().add(request.getAmount())
                         .compareTo(creditCard.getCreditLimit()) > 0) {
-                    throw new UnauthorizedException(
+                    throw new InsufficientFundsException(
                             "Insufficient credit limit on card: "
                                     + creditCard.getInstitution());
                 }
@@ -99,11 +100,11 @@ public class TransactionServiceImpl implements TransactionService {
                                     "Pocket", request.getPocketId()));
 
                     if (!p.isActive()) {
-                        throw new UnauthorizedException("Pocket is not active: " + p.getName());
+                        throw new BusinessRuleException("Pocket is not active: " + p.getName());
                     }
 
                     if (request.getAmount().compareTo(p.getBalance()) > 0) {
-                        throw new UnauthorizedException(
+                        throw new InsufficientFundsException(
                                 "Insufficient balance in pocket: " + p.getName());
                     }
 
@@ -129,7 +130,7 @@ public class TransactionServiceImpl implements TransactionService {
                     BigDecimal available = savingsAccount.getAvailableBalance();
 
                     if (request.getAmount().compareTo(available) > 0) {
-                        throw new UnauthorizedException(
+                        throw new InsufficientFundsException(
                                 "Insufficient available balance on account: "
                                         + savingsAccount.getInstitution()
                                         + ". Available: " + available
@@ -165,7 +166,6 @@ public class TransactionServiceImpl implements TransactionService {
                 .date(request.getDate())
                 .originType(request.getOriginType())
                 .creditCard(creditCard)
-                .savingsAccount(savingsAccount)
                 .shared(request.isShared())
                 .sharedWithName(request.getSharedWithName())
                 .sharedAmount(request.getSharedAmount())
