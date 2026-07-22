@@ -3,7 +3,7 @@
 > Documento vivo. Se actualiza al final de cada sesión de trabajo.
 > Sirve para retomar el proyecto sin depender de la memoria de nadie.
 >
-> **Última actualización:** 2026-07-18
+> **Última actualización:** 2026-07-21
 
 ---
 
@@ -25,7 +25,7 @@ front. No asumir nombres de campos.
 
 ## Hecho
 
-### Backend (Spring Boot 3.5 / Java 21) — 221 tests
+### Backend (Spring Boot 3.5 / Java 21) — 226 tests
 - **Auth:** OAuth2 Google + login/registro local. JWT con access de 15 min y
   refresh de 30 días con *rotation*. Multi-dispositivo, `/sessions`, `/logout-all`.
 - **Dominios con CRUD:** tarjetas, cuentas de ahorro (con bolsillos), deudas,
@@ -43,6 +43,12 @@ front. No asumir nombres de campos.
   `TransactionService.create()` (que ya valida disponible y maneja bolsillos) y
   deja la operación trazable como `Transaction`. Solo CASH y SAVINGS.
   La fuente se descuenta **antes** de tocar la deuda, en la misma `@Transactional`.
+- **Integridad en los PUT:** la validación de cupo (`creditLimit >= usedAmount`)
+  existía en el PATCH de tarjeta pero faltaba en el PUT, permitiendo dejar una
+  tarjeta con utilización > 100%. El barrido encontró el mismo patrón en bolsillos
+  (`updatePocket` permitía fijar una meta menor al saldo ya ahorrado). En ambos la
+  regla se extrajo a un método privado usado por PATCH y PUT, validando **antes**
+  de tocar la entidad.
 - **Bot de Telegram** (long polling, hilo único): consultas en lenguaje natural y
   registro de gastos/pagos con *preview → botón de confirmación → ejecución en
   código*. El modelo nunca ejecuta una escritura directamente.
@@ -67,6 +73,70 @@ front. No asumir nombres de campos.
   `UtilizationBar` (la marca del 30%), `GoalBar` (progreso de meta).
 - Sistema de diseño: sin color decorativo — el único color es el de la salud
   financiera. Montos siempre en mono con cifras tabulares.
+
+---
+
+## Deploy — EN CURSO
+
+**Decisión tomada: VPS propio en Oracle Cloud (Always Free) con Docker Compose.**
+Se descarta el PaaS después de que Railway (plan pago), Render (sin MongoDB y
+duerme la instancia, lo que mata el long polling del bot), Fly (cuenta marcada
+*high risk*, Postgres gestionado desde 38 USD) y Azure for Students (sin crédito)
+no funcionaran. Un VPS resuelve todo junto y sale gratis en el tier Always Free.
+
+**Dominio:** `finsight.jbyanx.dev` (el dominio `jbyanx.dev` ya es propio).
+
+**Arquitectura de producción:** Caddy sirve la PWA estática y hace de reverse
+proxy hacia el backend bajo el **mismo dominio** → sin CORS, el front sigue usando
+rutas relativas (`/api/...`) igual que con el proxy de Vite. Las bases de datos
+corren en Docker **sin publicar puertos**: solo Caddy expone 80/443.
+
+**Archivos ya listos (creados, falta commitear):**
+- `docker-compose.prod.yml` (raíz)
+- `deploy/Caddyfile`
+- `deploy/Dockerfile.web` (build del front + Caddy en una imagen)
+- `deploy/.env.prod.example`
+
+**Instancia OCI (en progreso):**
+- Shape `VM.Standard.A1.Flex`, 2 OCPU / 12 GB, Ubuntu 22.04, AD-3, on-demand.
+- Clave SSH: se reusa `~/.ssh/id_ed25519` (la de GitHub).
+- **BLOQUEADO EN:** el asistente de creación de instancia no habilita
+  "Automatically assign public IPv4 address" porque la subnet que crea no es
+  pública. **Solución:** crear la red aparte con
+  *Networking → Virtual Cloud Networks → Start VCN Wizard → "Create VCN with
+  Internet Connectivity"* (arma VCN + subnet pública + Internet Gateway + route
+  tables), y luego en la instancia elegir *"Select existing virtual cloud network"*
+  con esa subnet pública.
+
+**Pasos que faltan:**
+1. Crear la VCN con el wizard y relanzar la instancia con IP pública.
+2. Security List de la subnet pública: *Ingress Rules* para TCP 80 y 443
+   (source `0.0.0.0/0`).
+3. Firewall del sistema operativo (las imágenes de OCI vienen con iptables
+   cerrado — este es el paso que todo el mundo olvida):
+   ```
+   sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+   sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+   sudo netfilter-persistent save
+   ```
+4. Registro **A** en el DNS: `finsight` → IP pública. Verificar con
+   `dig +short finsight.jbyanx.dev`.
+5. Instalar Docker en el VPS, clonar el repo, `cp deploy/.env.prod.example .env`
+   y rellenarlo.
+6. **Construir EN EL VPS** (`docker compose -f docker-compose.prod.yml up -d
+   --build`): la instancia es **ARM**, y una imagen construida en la laptop x86
+   no corre allá.
+7. Bot **nuevo** en BotFather (dos instancias con el mismo token se roban los
+   mensajes), `JWT_SECRET` nuevo, y redirect URI de producción en Google Cloud
+   Console: `https://finsight.jbyanx.dev/login/oauth2/code/google`.
+
+**Verificar en los logs del primer arranque:** Liquibase aplicando los 15
+changesets, Hibernate validando el schema, `Registered 3 command handler(s)`, y
+Caddy obteniendo el certificado.
+
+> Las cuentas de **Neon** (PostgreSQL), **MongoDB Atlas** (M0) y **Upstash**
+> (Redis) quedan como alternativa si algún día se separa el almacenamiento del
+> compute. Con el VPS, las tres bases corren en Docker sobre la misma máquina.
 
 ---
 
@@ -111,25 +181,14 @@ front. No asumir nombres de campos.
 > El único `@Scheduled` que existe es el de limpieza de tokens. No hay ningún
 > envío proactivo del bot.
 
-### Deploy
-- [ ] **Hosting sin resolver.** Railway pide plan pago; Render no tiene MongoDB y
-      duerme la instancia (mata el long polling del bot); Fly marcó la cuenta como
-      *high risk* y su Postgres gestionado arranca en 38 USD; Azure for Students se
-      quedó sin crédito.
-- [x] Bases de datos ya configuradas y gratuitas: **Neon** (PostgreSQL),
-      **MongoDB Atlas** (M0), **Upstash** (Redis).
-- [ ] Falta solo el *compute*. Candidatos a evaluar: Koyeb, Northflank.
-- [ ] Requisito no negociable: la instancia **no puede dormirse**, o el bot
-      (long polling) deja de responder.
-- [ ] Al desplegar: bot nuevo en BotFather (dos instancias con el mismo token se
-      roban los mensajes), `JWT_SECRET` nuevo, y agregar la redirect URI de
-      producción en Google Cloud Console.
-
 ### Deuda técnica
 - [ ] **Jerarquía de excepciones de dominio.** Hoy cada excepción es una
       `RuntimeException` suelta con su handler propio. Una `DomainException` base
       con su `HttpStatus` asociado dejaría el status junto a la excepción — que es
       exactamente la causa raíz del bug del 401.
+- [ ] **`sharedOwnerName` huérfano en el PUT de cuenta de ahorro.** El PATCH lo
+      limpia cuando `shared` pasa a `false`; el PUT no. Es higiene de datos, no
+      corrupción (todos los cálculos filtran por `isShared()` antes de leerlo).
 - [ ] **Optimistic locking (`@Version`)** en `Cash`, `CreditCard` y
       `SavingsAccount`. Web y bot pueden escribir el mismo `userId` a la vez.
       Mitigado hoy porque las escrituras son `@Transactional` y se revalida al
@@ -170,3 +229,5 @@ front. No asumir nombres de campos.
 | Las escrituras del bot pasan **siempre** por confirmación con botón | El modelo propone; el código ejecuta. Nunca al revés |
 | El DELETE es *soft delete* | Las transacciones asociadas se conservan |
 | Recurso ajeno devuelve **404**, no 403 | No filtrar la existencia de recursos de otros usuarios |
+| Producción en **VPS propio**, no PaaS | El bot es long polling: cualquier instancia que se duerma lo deja mudo. Además el PaaS gratis con 3 bases no existe |
+| Front y API bajo el **mismo dominio** | Elimina CORS en producción y el front sigue usando rutas relativas sin cambios |
