@@ -66,7 +66,7 @@ export default function Login() {
         </div>
 
         {/* Navegación completa, no fetch: el OAuth necesita al navegador. */}
-        <a href="/oauth2/authorization/google" style={{ textDecoration: 'none' }}>
+        <a href={`${import.meta.env.VITE_API_URL}/oauth2/authorization/google`} style={{ textDecoration: 'none' }}></a>
           <button type="button" className="btn btn-ghost" style={{ borderColor: 'var(--line)' }}>
             Entrar con Google
           </button>
