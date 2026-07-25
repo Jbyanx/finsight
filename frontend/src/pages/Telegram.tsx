@@ -5,7 +5,8 @@ import { errorMessage } from '../lib/errorMessage';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 
-const BOT_USERNAME = 'jbyanx_bot';
+// Leemos la variable de entorno y si no existe, cae en 'jbyanx_bot'
+const BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'jbyanx_bot';
 const TELEGRAM_BASE = 'https://telegram.me'; // t.me falla en algunas redes/DNS
 
 /** Espeja LinkCodeResponse del backend. */
