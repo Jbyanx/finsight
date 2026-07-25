@@ -2,26 +2,13 @@ import type { AuthResponse } from '../types';
 
 /**
  * Cliente HTTP de Finsight.
- *
- * EL PROBLEMA QUE RESUELVE (y por qué no es un fetch pelado):
- *
- * El backend usa REFRESH TOKEN ROTATION: cada vez que usas un refresh token, el
- * backend lo invalida y emite uno nuevo. Es lo correcto en seguridad, pero rompe
- * el patrón ingenuo de "si da 401, refresca".
- *
- * Si el dashboard dispara 3 peticiones en paralelo y el access token venció, las
- * 3 dan 401 y las 3 intentan refrescar con el MISMO refresh token. La primera lo
- * consume y lo rota; la segunda y la tercera usan un token ya muerto → 401 → el
- * usuario queda deslogueado sin razón aparente.
- *
- * Solución: un único refresh en vuelo. La primera petición que ve el 401 arranca
- * el refresh; las demás se cuelgan de esa MISMA promesa y esperan. Cuando
- * resuelve, todas reintentan con el token nuevo. Un solo uso del refresh token,
- * cero deslogueos espurios.
  */
 
 const ACCESS = 'finsight.access';
 const REFRESH = 'finsight.refresh';
+
+// Leemos la URL base del backend desde las variables de entorno de Vite
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const tokens = {
   get access() {
@@ -62,10 +49,8 @@ async function refreshTokens(): Promise<string> {
   const refreshToken = tokens.refresh;
   if (!refreshToken) throw new Error('no refresh token');
 
-  // El backend espera el refresh token en el header X-Refresh-Token (ver
-  // AuthController#refresh), NO en el body. Mandarlo en el body daba 500 y
-  // deslogueaba al usuario en cada vencimiento del access token.
-  const res = await fetch('/api/v1/auth/refresh', {
+  // AQUÍ ESTABA EL ERROR: Usamos API_BASE_URL para que vaya a Railway
+  const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
     method: 'POST',
     headers: { 'X-Refresh-Token': refreshToken }
   });
@@ -77,7 +62,7 @@ async function refreshTokens(): Promise<string> {
   }
 
   const data: AuthResponse = await res.json();
-  tokens.save(data.accessToken, data.refreshToken); // el refresh ROTÓ
+  tokens.save(data.accessToken, data.refreshToken);
   return data.accessToken;
 }
 
@@ -94,7 +79,10 @@ function refreshOnce(): Promise<string> {
 async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
   const access = tokens.access;
 
-  const res = await fetch(path, {
+  // AQUÍ ESTABA EL OTRO ERROR: Construimos la URL completa usando Railway
+  const url = `${API_BASE_URL}${path}`;
+
+  const res = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -104,8 +92,8 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   });
 
   if (res.status === 401 && retry && tokens.refresh) {
-    await refreshOnce(); // si ya hay uno corriendo, se cuelga de él
-    return request<T>(path, init, false); // un solo reintento, sin loops
+    await refreshOnce();
+    return request<T>(path, init, false);
   }
 
   if (!res.ok) {
