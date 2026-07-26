@@ -7,6 +7,7 @@ import { money } from '../lib/money';
 import { errorMessage } from '../lib/errorMessage';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { BlockingWarning } from '../components/BlockingWarning';
 import type {
   Transaction, CreditCard, SavingsAccount, Pocket, Cash,
   Page, OriginType
@@ -333,7 +334,9 @@ function TransactionRow({
             {tx.description}
           </p>
           <p className="eyebrow" style={{ marginTop: 4 }}>
-            {tx.originName || ORIGIN_LABELS[tx.originType]}
+            {tx.originType === 'SAVINGS' && tx.originName
+              ? `Cuenta ${tx.originName}`
+              : (tx.originName || ORIGIN_LABELS[tx.originType])}
             {tx.pocketName ? ` · ${tx.pocketName}` : ''}
             {tx.category ? ` · ${tx.category}` : ''}
             {' · '}{date}
@@ -378,37 +381,6 @@ function TransactionRow({
         </button>
       </div>
     </div>
-  );
-}
-
-/* ============================================================
-   Aviso que vibra — se dispara al aparecer y se repite cada
-   4s mientras el bloqueo siga vigente, para que el usuario
-   entienda por qué el botón sigue apagado sin tener que buscarlo.
-   ============================================================ */
-
-function useShakePulse(active: boolean, intervalMs = 4000) {
-  const [nonce, setNonce] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    setNonce((n) => n + 1);
-    const id = setInterval(() => setNonce((n) => n + 1), intervalMs);
-    return () => clearInterval(id);
-  }, [active, intervalMs]);
-  return nonce;
-}
-
-function BlockingWarning({ message }: { message: string }) {
-  const nonce = useShakePulse(true);
-  return (
-    <p
-      key={nonce}
-      role="alert"
-      className="shake"
-      style={{ color: 'var(--danger)', fontSize: 13, fontWeight: 600, marginTop: -2 }}
-    >
-      {message}
-    </p>
   );
 }
 
