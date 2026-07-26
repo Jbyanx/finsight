@@ -10,6 +10,13 @@ import Cards from './pages/Cards';
 import Savings from './pages/Savings';
 import Debts from './pages/Debts';
 import { BottomNav } from './components/BottomNav';
+import More from './pages/More';
+import Profile from './pages/Profile';
+import Invoices from './pages/Invoices';
+import Income from './pages/Income';
+import Cash from './pages/Cash';
+import Transactions from './pages/Transactions';
+
 
 function Protected({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -31,6 +38,12 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/transactions" element={<Protected><Transactions /></Protected>} />
+          <Route path="/more" element={<Protected><More /></Protected>} />
+          <Route path="/invoices" element={<Protected><Invoices /></Protected>} />
+          <Route path="/income" element={<Protected><Income /></Protected>} />
+          <Route path="/cash" element={<Protected><Cash /></Protected>} />
+          <Route path="/profile" element={<Protected><Profile /></Protected>} />
           <Route
             path="/"
             element={
