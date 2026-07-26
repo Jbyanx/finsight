@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../lib/api';
 import { Field } from './Login';
+import { Select } from '../components/Select';
+import { BlockingWarning } from '../components/BlockingWarning';
 import { money } from '../lib/money';
 import { errorMessage } from '../lib/errorMessage';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { FixedDebt } from '../types';
+import type { FixedDebt, SavingsAccount, Pocket, Cash } from '../types';
 
 /* ============================================================
    Deudas fijas (créditos que se pagan en abonos).
@@ -15,6 +17,11 @@ import type { FixedDebt } from '../types';
    mide cuánto se ha PAGADO; llegar al 100% es BUENO (deuda saldada). Por eso la
    barra es verde y celebra el avance — NUNCA el código de peligro del 30%. La
    cifra protagonista es el saldo restante: "cuánto me falta".
+
+   El pago de una deuda es dinero real que sale de algún lado. El backend
+   soporta tres orígenes: CASH, SAVINGS, o ninguno (alguien más pagó fuera de
+   la app — se registra solo contablemente). Pagar con tarjeta no está
+   permitido: eso mueve la deuda de lugar, no la salda.
    ============================================================ */
 
 /** POST deuda: espeja el request de alta. */
@@ -36,8 +43,19 @@ interface DebtPatchRequest {
   paymentDueDay: number;
 }
 
+/** POST pago: espeja DebtPaymentRequest. originType solo CASH o SAVINGS. */
+type PaymentOrigin = 'NONE' | 'CASH' | 'SAVINGS';
+interface DebtPaymentBody {
+  amount: number;
+  originType?: 'CASH' | 'SAVINGS';
+  savingsAccountId?: string;
+  pocketId?: string;
+}
+
 export default function Debts() {
   const [debts, setDebts] = useState<FixedDebt[] | null>(null);
+  const [accounts, setAccounts] = useState<SavingsAccount[]>([]);
+  const [cash, setCash] = useState<Cash | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -53,8 +71,18 @@ export default function Debts() {
     }
   }
 
+  async function refreshOrigins() {
+    const [a, k] = await Promise.all([
+      api.get<SavingsAccount[]>('/api/v1/savings').catch(() => []),
+      api.get<Cash>('/api/v1/cash').catch(() => null)
+    ]);
+    setAccounts(a);
+    setCash(k);
+  }
+
   useEffect(() => {
     load();
+    refreshOrigins();
   }, []);
 
   function upsert(debt: FixedDebt) {
@@ -141,6 +169,8 @@ export default function Debts() {
           <DebtCard
             key={d.id}
             debt={d}
+            accounts={accounts}
+            cash={cash}
             editing={editingId === d.id}
             deleting={deletingId === d.id}
             onEdit={() => setEditingId(d.id)}
@@ -148,6 +178,10 @@ export default function Debts() {
             onSaved={(fresh) => {
               upsert(fresh);
               setEditingId(null);
+            }}
+            onPaid={(fresh) => {
+              upsert(fresh);
+              refreshOrigins();
             }}
             onDelete={() => setPendingDelete(d)}
           />
@@ -170,19 +204,25 @@ export default function Debts() {
 
 function DebtCard({
   debt,
+  accounts,
+  cash,
   editing,
   deleting,
   onEdit,
   onStopEdit,
   onSaved,
+  onPaid,
   onDelete
 }: {
   debt: FixedDebt;
+  accounts: SavingsAccount[];
+  cash: Cash | null;
   editing: boolean;
   deleting: boolean;
   onEdit: () => void;
   onStopEdit: () => void;
   onSaved: (debt: FixedDebt) => void;
+  onPaid: (debt: FixedDebt) => void;
   onDelete: () => void;
 }) {
   // El abono abre un input de MONTO debajo, patrón de Savings. No coexiste con la
@@ -274,10 +314,12 @@ function DebtCard({
       {paying && !editing && (
         <DebtPaymentForm
           debt={debt}
+          accounts={accounts}
+          cash={cash}
           onCancel={() => setPaying(false)}
           onDone={(fresh) => {
             setPaying(false);
-            onSaved(fresh);
+            onPaid(fresh);
           }}
         />
       )}
@@ -298,42 +340,91 @@ function DebtProgressBar({ paid, total, progress }: { paid: number; total: numbe
   const fill = Math.min(Math.max(progress, 0), 100);
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ height: 6, borderRadius: 999, background: 'var(--line)' }}>
-        <div style={{ width: fill + '%', height: '100%', borderRadius: 999,
-                      background: 'var(--safe)', transition: 'width .4s ease' }} />
+      <div style={{ position: 'relative', height: 10, borderRadius: 999, background: 'var(--line)' }}>
+        <div
+          style={{
+            width: fill + '%',
+            height: '100%',
+            borderRadius: 999,
+            background: 'var(--safe)',
+            transition: 'width .4s ease'
+          }}
+        />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span className="amount" style={{ fontSize: 12, color: 'var(--muted)' }}>
-          {money(paid)} <span style={{ opacity: 0.5 }}>/ {money(total)}</span>
-        </span>
-        <span className="amount" style={{ fontSize: 12, color: 'var(--safe)', fontWeight: 700 }}>
-          {fill.toFixed(0)}%
-        </span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Pagado {money(paid)}</span>
+        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Total {money(total)}</span>
       </div>
     </div>
   );
 }
 
 /**
- * Registrar un abono. El usuario piensa "abono $200.000", no en un total nuevo.
- * El endpoint devuelve la deuda actualizada, así que la usamos directo (onDone).
- * El backend valida que el pago no supere lo que falta; su mensaje se humaniza.
+ * Registrar un abono, con de dónde sale la plata.
+ *
+ * Tres orígenes posibles:
+ *   - "Nadie" (originType null): alguien pagó fuera de la app, el pago
+ *     solo se registra contablemente en la deuda.
+ *   - Efectivo: valida contra el saldo real de cash, igual que en
+ *     Transacciones — sin eso, el botón quedaría habilitado con plata
+ *     que no existe.
+ *   - Cuenta (+ bolsillo opcional): valida contra el disponible de la
+ *     cuenta elegida.
+ *
+ * Tarjeta NO es una opción aquí: el backend la rechaza porque pagar una
+ * deuda con tarjeta mueve la deuda de lugar, no la salda.
  */
 function DebtPaymentForm({
   debt,
+  accounts,
+  cash,
   onCancel,
   onDone
 }: {
   debt: FixedDebt;
+  accounts: SavingsAccount[];
+  cash: Cash | null;
   onCancel: () => void;
   onDone: (debt: FixedDebt) => void;
 }) {
   const [amount, setAmount] = useState('');
+  const [origin, setOrigin] = useState<PaymentOrigin>('NONE');
+  const [savingsAccountId, setSavingsAccountId] = useState(accounts[0]?.id ?? '');
+  const [pocketId, setPocketId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedAccount = accounts.find((a) => a.id === savingsAccountId);
+  const pockets: Pocket[] = selectedAccount?.pockets ?? [];
+
   const amountNum = Number(amount);
-  const valid = amount.trim() !== '' && Number.isFinite(amountNum) && amountNum > 0;
+  const amountEntered = amount.trim() !== '' && amountNum > 0;
+  const exceedsDebt = amountEntered && amountNum > debt.remainingBalance;
+
+  /* Motivo de bloqueo — el mismo lenguaje que en Transacciones: sin
+     efectivo suficiente, sin cuentas registradas, o el monto excede lo
+     que falta de la deuda. Único punto de verdad para habilitar el submit. */
+  let originWarning: string | null = null;
+  if (exceedsDebt) {
+    originWarning = `Ese monto supera lo que falta (${money(debt.remainingBalance)}).`;
+  } else if (origin === 'CASH') {
+    if (!cash || cash.balance <= 0) {
+      originWarning = 'No tienes efectivo registrado.';
+    } else if (amountEntered && amountNum > cash.balance) {
+      originWarning = `Ese monto supera tu efectivo disponible (${money(cash.balance)}).`;
+    }
+  } else if (origin === 'SAVINGS') {
+    if (accounts.length === 0) {
+      originWarning = 'No tienes cuentas de ahorro registradas.';
+    } else if (selectedAccount && amountEntered && amountNum > selectedAccount.availableBalance) {
+      originWarning = `Ese monto supera el disponible de la cuenta (${money(selectedAccount.availableBalance)}).`;
+    }
+  }
+
+  const valid =
+    amountEntered &&
+    originWarning === null &&
+    (origin !== 'SAVINGS' || savingsAccountId !== '');
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -341,9 +432,13 @@ function DebtPaymentForm({
     setError(null);
     setBusy(true);
     try {
-      const fresh = await api.post<FixedDebt>('/api/v1/debts/' + debt.id + '/payments', {
-        amount: amountNum
-      });
+      const body: DebtPaymentBody = {
+        amount: amountNum,
+        originType: origin === 'NONE' ? undefined : origin,
+        savingsAccountId: origin === 'SAVINGS' ? savingsAccountId : undefined,
+        pocketId: origin === 'SAVINGS' && pocketId ? pocketId : undefined
+      };
+      const fresh = await api.post<FixedDebt>('/api/v1/debts/' + debt.id + '/payments', body);
       onDone(fresh);
     } catch (err) {
       setError(errorMessage(err, 'No pudimos registrar el pago.'));
@@ -367,6 +462,61 @@ function DebtPaymentForm({
         hint={'Te falta ' + money(debt.remainingBalance) + '.'}
       />
 
+      <div style={{ display: 'grid', gap: 6 }}>
+        <span className="eyebrow">¿De dónde sale?</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['NONE', 'CASH', 'SAVINGS'] as const).map((o) => (
+            <button
+              key={o}
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setOrigin(o)}
+              style={{ flex: 1, ...(origin === o ? activeBtn : smallBtn) }}
+            >
+              {ORIGIN_OPTION_LABELS[o]}
+            </button>
+          ))}
+        </div>
+        {origin === 'NONE' && (
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+            Pagó alguien más fuera de la app: solo se registra en la deuda.
+          </span>
+        )}
+      </div>
+
+      {origin === 'CASH' && cash && cash.balance > 0 && (
+        <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+          Disponible en efectivo: <strong style={{ color: 'var(--ink)' }}>{money(cash.balance)}</strong>
+        </p>
+      )}
+
+      {origin === 'SAVINGS' && accounts.length > 0 && (
+        <>
+          <Select
+            label="Cuenta"
+            value={savingsAccountId}
+            onChange={(v) => { setSavingsAccountId(v); setPocketId(''); }}
+          >
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {(a.nickname || a.institution)} — {money(a.availableBalance)}
+              </option>
+            ))}
+          </Select>
+
+          {pockets.length > 0 && (
+            <Select label="Bolsillo (opcional)" value={pocketId} onChange={setPocketId}>
+              <option value="">Ninguno</option>
+              {pockets.map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {money(p.balance)}</option>
+              ))}
+            </Select>
+          )}
+        </>
+      )}
+
+      {originWarning && <BlockingWarning message={originWarning} />}
+
       {error && <InlineAlert message={error} />}
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -385,6 +535,12 @@ function DebtPaymentForm({
     </form>
   );
 }
+
+const ORIGIN_OPTION_LABELS: Record<PaymentOrigin, string> = {
+  NONE: 'Nadie (solo registrar)',
+  CASH: 'Efectivo',
+  SAVINGS: 'Cuenta'
+};
 
 /**
  * Formulario único para crear y editar. Sin `initial` es alta (POST); con
@@ -412,15 +568,11 @@ function DebtForm({
   const [institution, setInstitution] = useState(initial?.institution ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [totalAmount, setTotalAmount] = useState(initial ? String(initial.totalAmount) : '');
-  const [monthlyPayment, setMonthlyPayment] = useState(
-    initial ? String(initial.monthlyPayment) : ''
-  );
+  const [monthlyPayment, setMonthlyPayment] = useState(initial ? String(initial.monthlyPayment) : '');
   const [interestRate, setInterestRate] = useState(
-    initial && initial.interestRate ? String(initial.interestRate) : ''
+    initial?.interestRate != null ? String(initial.interestRate) : ''
   );
-  const [paymentDueDay, setPaymentDueDay] = useState(
-    initial ? String(initial.paymentDueDay) : ''
-  );
+  const [paymentDueDay, setPaymentDueDay] = useState(initial ? String(initial.paymentDueDay) : '');
   const [remainingBalance, setRemainingBalance] = useState(
     initial ? String(initial.remainingBalance) : ''
   );
@@ -430,19 +582,15 @@ function DebtForm({
   const totalNum = Number(totalAmount);
   const monthlyNum = Number(monthlyPayment);
   const dueNum = Number(paymentDueDay);
-  const remainingNum = Number(remainingBalance);
-  const rateNum = interestRate.trim() === '' ? 0 : Number(interestRate);
+  const remainingNum = remainingBalance.trim() === '' ? totalNum : Number(remainingBalance);
 
   const validDay = (n: number) => Number.isInteger(n) && n >= 1 && n <= 31;
-  const rateValid = Number.isFinite(rateNum) && rateNum >= 0;
   const valid =
     (editing || institution.trim() !== '') &&
-    (editing || (totalAmount.trim() !== '' && totalNum >= 0.01)) &&
-    (editing || (remainingBalance.trim() !== '' && remainingNum >= 0)) &&
-    monthlyPayment.trim() !== '' &&
-    monthlyNum >= 0.01 &&
-    rateValid &&
-    validDay(dueNum);
+    totalAmount.trim() !== '' && totalNum >= 0.01 &&
+    monthlyPayment.trim() !== '' && monthlyNum >= 0.01 &&
+    validDay(dueNum) &&
+    remainingNum >= 0;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -455,7 +603,7 @@ function DebtForm({
         const body: DebtPatchRequest = {
           description: description.trim(),
           monthlyPayment: monthlyNum,
-          interestRate: rateNum,
+          interestRate: interestRate.trim() === '' ? 0 : Number(interestRate),
           paymentDueDay: dueNum
         };
         debt = await api.patch<FixedDebt>('/api/v1/debts/' + initial.id, body);
@@ -465,7 +613,7 @@ function DebtForm({
           description: description.trim(),
           totalAmount: totalNum,
           monthlyPayment: monthlyNum,
-          interestRate: rateNum,
+          interestRate: interestRate.trim() === '' ? 0 : Number(interestRate),
           paymentDueDay: dueNum,
           remainingBalance: remainingNum
         };
@@ -490,35 +638,39 @@ function DebtForm({
       }
     >
       {editing ? (
-        <ReadOnly label="Institución" value={institution} />
+        <div style={{ display: 'grid', gap: 6 }}>
+          <span className="eyebrow">Institución</span>
+          <p style={{ fontWeight: 600, fontSize: 15 }}>{institution}</p>
+        </div>
       ) : (
         <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-               placeholder="Banco / entidad" />
+               placeholder="Banco de Bogotá" />
       )}
-
       <Field label="Descripción (opcional)" type="text" value={description} onChange={setDescription}
-             placeholder="Crédito de vehículo" />
+             placeholder="Crédito moto" />
 
       {editing ? (
-        <ReadOnly label="Monto total" value={money(initial.totalAmount)} />
+        <div style={{ display: 'grid', gap: 6 }}>
+          <span className="eyebrow">Monto total</span>
+          <p style={{ fontWeight: 600, fontSize: 15 }}>{money(totalNum)}</p>
+        </div>
       ) : (
         <Field label="Monto total" type="number" value={totalAmount} onChange={setTotalAmount}
-               placeholder="12000000" hint="Lo que pediste en total." />
-      )}
-
-      {editing ? (
-        <ReadOnly label="Saldo restante" value={money(initial.remainingBalance)} />
-      ) : (
-        <Field label="Saldo restante" type="number" value={remainingBalance} onChange={setRemainingBalance}
-               placeholder="8000000" hint="Cuánto te falta hoy. No puede ser negativo." />
+               placeholder="8000000" hint="Debe ser mayor a 0." />
       )}
 
       <Field label="Cuota mensual" type="number" value={monthlyPayment} onChange={setMonthlyPayment}
-             placeholder="500000" hint="Debe ser mayor a 0." />
-      <Field label="Interés % (opcional)" type="number" value={interestRate} onChange={setInterestRate}
-             placeholder="18.5" hint="Tasa anual, si la conoces." />
+             placeholder="141889" hint="Debe ser mayor a 0." />
+      <Field label="Tasa de interés (opcional)" type="number" value={interestRate} onChange={setInterestRate}
+             placeholder="0" />
       <Field label="Día de pago" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
-             placeholder="5" hint="Entre 1 y 31." />
+             placeholder="16" hint="Entre 1 y 31." />
+
+      {!editing && (
+        <Field label="Saldo restante (opcional)" type="number" value={remainingBalance}
+               onChange={setRemainingBalance} placeholder="8000000"
+               hint="Déjalo vacío si aún no has pagado nada." />
+      )}
 
       {error && <InlineAlert message={error} />}
 
@@ -531,15 +683,6 @@ function DebtForm({
         Cancelar
       </button>
     </form>
-  );
-}
-
-function ReadOnly({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      <span className="eyebrow">{label}</span>
-      <p className="amount" style={{ fontSize: 15, fontWeight: 600 }}>{value}</p>
-    </div>
   );
 }
 
