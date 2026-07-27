@@ -4,7 +4,8 @@ import { api } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { money, healthOf } from '../lib/money';
 import { UtilizationBar } from '../components/UtilizationBar';
-import { recommendedPayment, formatNextOccurrence } from '../lib/cardHealth';
+import { recommendedPayment } from '../lib/cardHealth';
+import { formatNextOccurrence } from '../lib/dateOccurrence';
 import type { CreditCard, FinancialSummary } from '../types';
 
 /**
@@ -147,6 +148,30 @@ const health = healthOf(summary.overallUtilizationPercentage);
               Paga {money(recommendedPayment(best))} antes del corte ({formatNextOccurrence(best.cutOffDay)})
               para no facturar por encima del 30% de tu cupo.
             </p>
+          )}
+          {summary.upcomingInvoices.length > 0 && (
+            <section className="card" style={{ marginTop: 22, borderColor: 'var(--warn)' }}>
+              <p className="eyebrow">Facturas próximas</p>
+              <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                {summary.upcomingInvoices.map((inv) => (
+                  <div key={inv.invoiceId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: 14 }}>{inv.description}</p>
+                      <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+                        Vence el {formatNextOccurrence(inv.dueDay)}
+                        {!inv.own && inv.responsibleName ? ` · recuérdale a ${inv.responsibleName}` : ''}
+                      </p>
+                    </div>
+                    <span className="amount" style={{ fontSize: 15, fontWeight: 700, color: 'var(--warn)' }}>
+                      {money(inv.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <Link to="/invoices" style={{ display: 'block', marginTop: 12, fontSize: 13, color: 'var(--ink)', fontWeight: 600, textDecoration: 'none' }}>
+                Ver todas →
+              </Link>
+            </section>
           )}
         </section>
       )}
