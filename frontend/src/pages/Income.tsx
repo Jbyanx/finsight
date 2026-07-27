@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { api } from '../lib/api';
 import { Field } from './Login';
 import { Select } from '../components/Select';
+import { MoneyField } from '../components/MoneyField';
 import { BlockingWarning } from '../components/BlockingWarning';
 import { money } from '../lib/money';
 import { errorMessage } from '../lib/errorMessage';
@@ -41,7 +42,7 @@ const TYPE_LABELS: Record<IncomeType, string> = {
 };
 
 const FREQUENCY_LABELS: Record<IncomeFrequency, string> = {
-  PER_SHIFT: 'Por turno',
+  PER_SHIFT: 'Por trabajo',
   WEEKLY: 'Semanal',
   MONTHLY: 'Mensual'
 };
@@ -325,7 +326,7 @@ function EntryForm({
 
   return (
     <form onSubmit={onSubmit} className="card" style={{ marginTop: 16, display: 'grid', gap: 12 }}>
-      <Field label="Monto" type="number" value={amount} onChange={setAmount}
+      <MoneyField label="Monto" value={amount} onChange={setAmount}
              placeholder="60000" hint="Debe ser mayor a 0." />
       <Field label="Descripción (opcional)" type="text" value={description} onChange={setDescription}
              placeholder="Turno del martes" />
@@ -611,7 +612,7 @@ function SourceForm({
       }
     >
       <Field label="Descripción" type="text" value={description} onChange={setDescription}
-             placeholder="Turnos del hotel" />
+             placeholder="Recepcionista tiempo completo" />
 
       <div style={{ display: 'grid', gap: 6 }}>
         <span className="eyebrow">Tipo</span>
@@ -631,12 +632,12 @@ function SourceForm({
         </span>
       </div>
 
-      <Field label="Monto estimado (opcional)" type="number" value={estimatedAmount}
-             onChange={setEstimatedAmount} placeholder="60000" />
+      <MoneyField label="Monto estimado (opcional)" value={estimatedAmount}
+             onChange={setEstimatedAmount} placeholder="1200000" />
 
       <Select label="Frecuencia (opcional)" value={frequency} onChange={(v) => setFrequency(v as IncomeFrequency | '')}>
         <option value="">Sin frecuencia fija</option>
-        <option value="PER_SHIFT">Por turno</option>
+        <option value="PER_SHIFT">Por trabajo</option>
         <option value="WEEKLY">Semanal</option>
         <option value="MONTHLY">Mensual</option>
       </Select>
@@ -881,12 +882,12 @@ function ExpenseForm({
              placeholder="Gasolina" />
 
       <Select label="Frecuencia" value={frequency} onChange={(v) => setFrequency(v as IncomeFrequency)}>
-        <option value="PER_SHIFT">Por turno</option>
+        <option value="PER_SHIFT">Por trabajo</option>
         <option value="WEEKLY">Semanal</option>
         <option value="MONTHLY">Mensual</option>
       </Select>
 
-      <Field label="Monto estimado" type="number" value={estimatedAmount} onChange={setEstimatedAmount}
+      <MoneyField label="Monto estimado" value={estimatedAmount} onChange={setEstimatedAmount}
              placeholder="20000" hint="Debe ser mayor a 0." />
 
       <Field label="Veces al mes (opcional)" type="number" value={occurrencesPerMonth}
