@@ -32,12 +32,11 @@ public class FixedDebt {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal totalAmount;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @Column(precision = 15, scale = 2)
     private BigDecimal monthlyPayment;
 
     private BigDecimal interestRate; // opcional, para cálculos avanzados
 
-    @Column(nullable = false)
     private Integer paymentDueDay;
 
     @Column(nullable = false, precision = 15, scale = 2)

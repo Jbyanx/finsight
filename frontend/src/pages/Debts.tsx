@@ -19,29 +19,36 @@ import type { FixedDebt, SavingsAccount, Pocket, Cash } from '../types';
    barra es verde y celebra el avance — NUNCA el código de peligro del 30%. La
    cifra protagonista es el saldo restante: "cuánto me falta".
 
+   monthlyPayment y paymentDueDay son OPCIONALES — cubren la deuda informal
+   real ("le debo $200k a mi tío, sin fecha ni cuota fija"), no solo el
+   crédito bancario con calendario. Si faltan, la tarjeta lo dice explícito
+   en vez de fingir que hay un plan de pago que no existe.
+
    El pago de una deuda es dinero real que sale de algún lado. El backend
    soporta tres orígenes: CASH, SAVINGS, o ninguno (alguien más pagó fuera de
    la app — se registra solo contablemente). Pagar con tarjeta no está
    permitido: eso mueve la deuda de lugar, no la salda.
    ============================================================ */
 
-/** POST deuda: espeja el request de alta. */
+/** POST deuda: espeja el request de alta. monthlyPayment/paymentDueDay opcionales. */
 interface DebtRequest {
   institution: string;
   description: string;
   totalAmount: number;
-  monthlyPayment: number;
+  monthlyPayment?: number;
   interestRate: number;
-  paymentDueDay: number;
+  paymentDueDay?: number;
   remainingBalance: number;
 }
 
-/** PATCH deuda: institution, totalAmount y remainingBalance NO se editan. */
+/** PATCH deuda: institution, totalAmount y remainingBalance NO se editan.
+    Un campo ausente (undefined) significa "no lo toques" — el backend
+    solo actualiza lo que venga distinto de null. */
 interface DebtPatchRequest {
-  description: string;
-  monthlyPayment: number;
-  interestRate: number;
-  paymentDueDay: number;
+  description?: string;
+  monthlyPayment?: number;
+  interestRate?: number;
+  paymentDueDay?: number;
 }
 
 /** POST pago: espeja DebtPaymentRequest. originType solo CASH o SAVINGS. */
@@ -160,8 +167,9 @@ export default function Debts() {
 
       {!adding && debts.length === 0 && (
         <div className="card" style={{ marginTop: 22, color: 'var(--muted)', fontSize: 14, lineHeight: 1.5 }}>
-          Todavía no tienes deudas registradas. Agrega la primera para seguir cuánto
-          te falta y celebrar cuando la saldes.
+          Todavía no tienes deudas registradas. Sirve tanto para un crédito
+          bancario con cuota fija como para "le debo $200.000 a mi tío" sin
+          fecha ni cuota — agrega la primera para seguir cuánto te falta.
         </div>
       )}
 
@@ -230,6 +238,8 @@ function DebtCard({
   // edición: cada uno deshabilita al otro.
   const [paying, setPaying] = useState(false);
 
+  const isInformal = debt.monthlyPayment == null || debt.paymentDueDay == null;
+
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
@@ -237,6 +247,9 @@ function DebtCard({
           <p style={{ fontWeight: 600, fontSize: 15 }}>{debt.description || debt.institution}</p>
           {debt.description && (
             <p className="eyebrow" style={{ marginTop: 2 }}>{debt.institution}</p>
+          )}
+          {isInformal && !debt.paidOff && (
+            <p className="eyebrow" style={{ marginTop: 2 }}>Sin cuota ni fecha fija</p>
           )}
         </div>
         {debt.paidOff && (
@@ -427,6 +440,10 @@ function DebtPaymentForm({
     originWarning === null &&
     (origin !== 'SAVINGS' || savingsAccountId !== '');
 
+  // Si la deuda no tiene cuota definida, no hay un monto "típico" que sugerir —
+  // el usuario decide cuánto abonar libremente.
+  const paymentPlaceholder = debt.monthlyPayment != null ? String(debt.monthlyPayment) : '50000';
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!valid) return;
@@ -458,7 +475,7 @@ function DebtPaymentForm({
         label="Monto del abono"
         value={amount}
         onChange={setAmount}
-        placeholder={String(debt.monthlyPayment)}
+        placeholder={paymentPlaceholder}
         hint={'Te falta ' + money(debt.remainingBalance) + '.'}
       />
 
@@ -548,9 +565,11 @@ const ORIGIN_OPTION_LABELS: Record<PaymentOrigin, string> = {
  * se muestran fijos porque el backend no los deja cambiar. `embedded` lo dibuja
  * dentro de la tarjeta (edición) en vez de como card suelta (alta).
  *
- * Valida lo mismo que el backend: totalAmount y monthlyPayment >= 0.01,
- * paymentDueDay entre 1 y 31, remainingBalance >= 0. interestRate y description
- * son opcionales.
+ * monthlyPayment y paymentDueDay son OPCIONALES — cubren tanto el crédito
+ * bancario con calendario fijo como la deuda informal sin ninguno de los
+ * dos. Si el usuario los deja vacíos, no se mandan al backend (undefined,
+ * nunca 0 ni NaN) — al editar, dejar uno vacío significa "no lo toques",
+ * no "bórralo": el backend de PATCH no distingue "ausente" de "quitar".
  */
 function DebtForm({
   initial,
@@ -568,11 +587,15 @@ function DebtForm({
   const [institution, setInstitution] = useState(initial?.institution ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [totalAmount, setTotalAmount] = useState(initial ? String(initial.totalAmount) : '');
-  const [monthlyPayment, setMonthlyPayment] = useState(initial ? String(initial.monthlyPayment) : '');
+  const [monthlyPayment, setMonthlyPayment] = useState(
+    initial?.monthlyPayment != null ? String(initial.monthlyPayment) : ''
+  );
   const [interestRate, setInterestRate] = useState(
     initial?.interestRate != null ? String(initial.interestRate) : ''
   );
-  const [paymentDueDay, setPaymentDueDay] = useState(initial ? String(initial.paymentDueDay) : '');
+  const [paymentDueDay, setPaymentDueDay] = useState(
+    initial?.paymentDueDay != null ? String(initial.paymentDueDay) : ''
+  );
   const [remainingBalance, setRemainingBalance] = useState(
     initial ? String(initial.remainingBalance) : ''
   );
@@ -580,16 +603,21 @@ function DebtForm({
   const [error, setError] = useState<string | null>(null);
 
   const totalNum = Number(totalAmount);
-  const monthlyNum = Number(monthlyPayment);
-  const dueNum = Number(paymentDueDay);
   const remainingNum = remainingBalance.trim() === '' ? totalNum : Number(remainingBalance);
 
+  const monthlyEntered = monthlyPayment.trim() !== '';
+  const monthlyNum = monthlyEntered ? Number(monthlyPayment) : undefined;
+
+  const dueEntered = paymentDueDay.trim() !== '';
+  const dueNum = dueEntered ? Number(paymentDueDay) : undefined;
+
   const validDay = (n: number) => Number.isInteger(n) && n >= 1 && n <= 31;
+
   const valid =
     (editing || institution.trim() !== '') &&
     totalAmount.trim() !== '' && totalNum >= 0.01 &&
-    monthlyPayment.trim() !== '' && monthlyNum >= 0.01 &&
-    validDay(dueNum) &&
+    (!monthlyEntered || monthlyNum! >= 0.01) &&
+    (!dueEntered || validDay(dueNum!)) &&
     remainingNum >= 0;
 
   async function onSubmit(e: FormEvent) {
@@ -644,10 +672,10 @@ function DebtForm({
         </div>
       ) : (
         <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-               placeholder="Banco de Bogotá" />
+               placeholder="Banco de Bogotá o el nombre de la persona" />
       )}
       <Field label="Descripción (opcional)" type="text" value={description} onChange={setDescription}
-             placeholder="Crédito moto" />
+             placeholder="Crédito moto, préstamo de mi tío…" />
 
       {editing ? (
         <div style={{ display: 'grid', gap: 6 }}>
@@ -659,12 +687,12 @@ function DebtForm({
                placeholder="3000000" hint="Debe ser mayor a 0." />
       )}
 
-      <MoneyField label="Cuota mensual" value={monthlyPayment} onChange={setMonthlyPayment}
-             placeholder="150000" hint="Debe ser mayor a 0." />
+      <MoneyField label="Cuota mensual (opcional)" value={monthlyPayment} onChange={setMonthlyPayment}
+             placeholder="150000" hint="Déjalo vacío si es una deuda informal, sin cuota fija." />
       <Field label="Tasa de interés (opcional)" type="number" value={interestRate} onChange={setInterestRate}
              placeholder="0" />
-      <Field label="Día de pago" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
-             placeholder="16" hint="Entre 1 y 31." />
+      <Field label="Día de pago (opcional)" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
+             placeholder="16" hint="Entre 1 y 31 — déjalo vacío si no tiene fecha fija." />
 
       {!editing && (
         <MoneyField label="Saldo restante (opcional)" value={remainingBalance}
