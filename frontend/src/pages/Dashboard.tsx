@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../auth/AuthContext';
 import { money, healthOf } from '../lib/money';
 import { UtilizationBar } from '../components/UtilizationBar';
+import { recommendedPayment, formatNextOccurrence } from '../lib/cardHealth';
 import type { CreditCard, FinancialSummary } from '../types';
 
 /**
@@ -141,6 +142,12 @@ const health = healthOf(summary.overallUtilizationPercentage);
           <p className="amount" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>
             Corte el {best.cutOffDay}
           </p>
+          {best.utilizationStatus !== 'SAFE' && (
+            <p style={{ marginTop: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
+              Paga {money(recommendedPayment(best))} antes del corte ({formatNextOccurrence(best.cutOffDay)})
+              para no facturar por encima del 30% de tu cupo.
+            </p>
+          )}
         </section>
       )}
 
@@ -160,6 +167,12 @@ const health = healthOf(summary.overallUtilizationPercentage);
                 available={c.availableAmount}
                 utilization={c.utilizationPercentage}
               />
+              {c.utilizationStatus !== 'SAFE' && (
+                <p style={{ marginTop: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
+                  Paga {money(recommendedPayment(c))} antes del corte ({formatNextOccurrence(c.cutOffDay)})
+                  para no facturar por encima del 30% de tu cupo.
+                </p>
+              )}
             </div>
           ))}
           {cards.length === 0 && (

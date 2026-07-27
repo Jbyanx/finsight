@@ -4,7 +4,7 @@ const NAV_ITEMS = [
   { to: '/',             label: 'Inicio',      icon: <HomeIcon /> },
   { to: '/cards',        label: 'Tarjetas',    icon: <CardIcon /> },
   { to: '/transactions', label: 'Movimientos', icon: <TxIcon /> },
-  { to: '/savings',      label: 'Ahorro',      icon: <SavingsIcon /> },
+  { to: '/savings',      label: 'Cuentas',      icon: <SavingsIcon /> },
   { to: '/more',         label: 'Más',         icon: <MoreIcon /> },
 ];
 
@@ -18,8 +18,8 @@ export function BottomNav() {
         transform: 'translateX(-50%)',
         width: '100%',
         maxWidth: 480,
-        background: 'var(--surface)',
-        borderTop: '1px solid var(--border)',
+        background: 'var(--card)',
+        borderTop: '1px solid var(--line)',
         display: 'flex',
         paddingBottom: 'env(safe-area-inset-bottom)',
         zIndex: 100,
