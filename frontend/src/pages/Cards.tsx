@@ -7,7 +7,8 @@ import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { errorMessage } from '../lib/errorMessage';
 import { money } from '../lib/money';
-import { recommendedPayment, formatNextOccurrence } from '../lib/cardHealth';
+import { recommendedPayment } from '../lib/cardHealth';
+import { formatNextOccurrence } from '../lib/dateOccurrence';
 import type { CreditCard } from '../types';
 
 /** Alta: espeja CreditCardRequest. institution solo se define al crear. */
