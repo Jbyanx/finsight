@@ -26,13 +26,11 @@ public class FixedDebtRequest {
     @DecimalMin(value = "0.01", message = "Total amount must be greater than 0")
     private BigDecimal totalAmount;
 
-    @NotNull(message = "Monthly payment is required")
     @DecimalMin(value = "0.01", message = "Monthly payment must be greater than 0")
     private BigDecimal monthlyPayment;
 
     private BigDecimal interestRate; // opcional, para cálculos avanzados
 
-    @NotNull(message = "Payment due day is required")
     @Min(1) @Max(31)
     private Integer paymentDueDay;
 
