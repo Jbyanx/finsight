@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { api } from '../lib/api';
 import { Field } from './Login';
 import { Select } from '../components/Select';
+import { MoneyField } from '../components/MoneyField';
 import { BlockingWarning } from '../components/BlockingWarning';
 import { money } from '../lib/money';
 import { errorMessage } from '../lib/errorMessage';
@@ -453,12 +454,11 @@ function DebtPaymentForm({
                borderRadius: 10, padding: 12 }}
     >
       <p style={{ fontWeight: 600, fontSize: 14 }}>¿Cuánto quieres abonar?</p>
-      <Field
-        label="Monto"
-        type="number"
+      <MoneyField
+        label="Monto del abono"
         value={amount}
         onChange={setAmount}
-        placeholder="200000"
+        placeholder={String(debt.monthlyPayment)}
         hint={'Te falta ' + money(debt.remainingBalance) + '.'}
       />
 
@@ -655,20 +655,20 @@ function DebtForm({
           <p style={{ fontWeight: 600, fontSize: 15 }}>{money(totalNum)}</p>
         </div>
       ) : (
-        <Field label="Monto total" type="number" value={totalAmount} onChange={setTotalAmount}
-               placeholder="8000000" hint="Debe ser mayor a 0." />
+        <MoneyField label="Monto total" value={totalAmount} onChange={setTotalAmount}
+               placeholder="3000000" hint="Debe ser mayor a 0." />
       )}
 
-      <Field label="Cuota mensual" type="number" value={monthlyPayment} onChange={setMonthlyPayment}
-             placeholder="141889" hint="Debe ser mayor a 0." />
+      <MoneyField label="Cuota mensual" value={monthlyPayment} onChange={setMonthlyPayment}
+             placeholder="150000" hint="Debe ser mayor a 0." />
       <Field label="Tasa de interés (opcional)" type="number" value={interestRate} onChange={setInterestRate}
              placeholder="0" />
       <Field label="Día de pago" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
              placeholder="16" hint="Entre 1 y 31." />
 
       {!editing && (
-        <Field label="Saldo restante (opcional)" type="number" value={remainingBalance}
-               onChange={setRemainingBalance} placeholder="8000000"
+        <MoneyField label="Saldo restante (opcional)" value={remainingBalance}
+               onChange={setRemainingBalance} placeholder="2500000"
                hint="Déjalo vacío si aún no has pagado nada." />
       )}
 

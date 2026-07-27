@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { api } from '../lib/api';
 import { Field } from './Login';
 import { Select } from '../components/Select';
+import { MoneyField } from '../components/MoneyField';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { money } from '../lib/money';
@@ -394,9 +395,8 @@ function PaymentForm({
         </div>
       </div>
 
-      <Field
+      <MoneyField
         label="Monto pagado (opcional)"
-        type="number"
         value={amountPaid}
         onChange={setAmountPaid}
         placeholder={String(invoice.amount)}
@@ -627,8 +627,8 @@ function InvoiceForm({
     >
       <Field label="Descripción" type="text" value={description} onChange={setDescription}
              placeholder="Netflix, recibo de luz, plan celular…" />
-      <Field label="Monto" type="number" value={amount} onChange={setAmount}
-             placeholder="60000" hint="Debe ser mayor a 0." />
+      <MoneyField label="Monto" value={amount} onChange={setAmount}
+             placeholder="45000" hint="Debe ser mayor a 0." />
 
       <Select label="Frecuencia" value={frequency} onChange={(v) => setFrequency(v as InvoiceFrequency)}>
         <option value="MONTHLY">Mensual</option>

@@ -3,11 +3,12 @@ import type { FormEvent } from 'react';
 import { api } from '../lib/api';
 import { Field } from './Login';
 import { Select } from '../components/Select';
+import { MoneyField } from '../components/MoneyField';
+import { BlockingWarning } from '../components/BlockingWarning';
 import { money } from '../lib/money';
 import { errorMessage } from '../lib/errorMessage';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import { BlockingWarning } from '../components/BlockingWarning';
 import type {
   Transaction, CreditCard, SavingsAccount, Pocket, Cash,
   Page, OriginType
@@ -244,7 +245,27 @@ export default function Transactions() {
       )}
 
       {page.totalPages > 1 && (
-        <Pager page={page} onChange={load} />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 18, marginTop: 24 }}>
+          <button
+            className="btn btn-ghost"
+            disabled={page.first}
+            onClick={() => load(page.number - 1)}
+            style={{ ...smallBtn, opacity: page.first ? 0.4 : 1 }}
+          >
+            Anterior
+          </button>
+          <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+            {page.number + 1} de {page.totalPages}
+          </span>
+          <button
+            className="btn btn-ghost"
+            disabled={page.last}
+            onClick={() => load(page.number + 1)}
+            style={{ ...smallBtn, opacity: page.last ? 0.4 : 1 }}
+          >
+            Siguiente
+          </button>
+        </div>
       )}
 
       {pendingDelete && (
@@ -258,56 +279,6 @@ export default function Transactions() {
         />
       )}
     </main>
-  );
-}
-
-/* ============================================================
-   Paginación — pares de botones circulares con ícono. Un botón
-   deshabilitado (opaco + cursor not-allowed) comunica por sí solo
-   que no hay más páginas en esa dirección; no hace falta texto.
-   ============================================================ */
-
-function Pager({ page, onChange }: { page: Page<Transaction>; onChange: (n: number) => void }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 18, marginTop: 24 }}>
-      <PagerButton direction="prev" disabled={page.first} onClick={() => onChange(page.number - 1)} />
-      <span style={{ fontSize: 13, color: 'var(--muted)', minWidth: 92, textAlign: 'center' }}>
-        Página {page.number + 1} de {page.totalPages}
-      </span>
-      <PagerButton direction="next" disabled={page.last} onClick={() => onChange(page.number + 1)} />
-    </div>
-  );
-}
-
-function PagerButton({
-  direction,
-  disabled,
-  onClick
-}: {
-  direction: 'prev' | 'next';
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={direction === 'prev' ? 'Página anterior' : 'Página siguiente'}
-      style={{
-        width: 40, height: 40, borderRadius: '50%',
-        border: '1px solid var(--line)',
-        background: 'var(--card)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.35 : 1,
-        color: 'var(--ink)'
-      }}
-    >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {direction === 'prev' ? <path d="M15 18l-6-6 6-6" /> : <path d="M9 18l6-6-6-6" />}
-      </svg>
-    </button>
   );
 }
 
@@ -425,8 +396,8 @@ function TransactionForm({
   const pockets: Pocket[] = selectedAccount?.pockets ?? [];
 
   const amountNum = Number(amount);
-  const installmentsNum = Number(installments);
   const amountEntered = amount.trim() !== '' && amountNum >= 0.01;
+  const exceedsCash = originType === 'CASH' && amountEntered && cash && amountNum > cash.balance;
 
   /* Motivo de bloqueo por origen — cubre exactamente los tres casos que un
      QA esperaría: sin tarjetas, sin cuentas, y sin efectivo suficiente. Es
@@ -439,7 +410,7 @@ function TransactionForm({
   } else if (originType === 'CASH') {
     if (!cash || cash.balance <= 0) {
       originWarning = 'No tienes efectivo registrado.';
-    } else if (amountEntered && amountNum > cash.balance) {
+    } else if (exceedsCash) {
       originWarning = `Ese monto supera tu efectivo disponible (${money(cash.balance)}).`;
     }
   }
@@ -450,8 +421,12 @@ function TransactionForm({
     originWarning === null &&
     (originType !== 'CREDIT_CARD' || creditCardId !== '') &&
     (originType !== 'SAVINGS' || savingsAccountId !== '') &&
-    Number.isInteger(installmentsNum) && installmentsNum >= 1 &&
+    Number.isInteger(installmentsNum()) && installmentsNum() >= 1 &&
     (!shared || sharedWithName.trim() !== '');
+
+  function installmentsNum() {
+    return Number(installments);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -470,7 +445,7 @@ function TransactionForm({
         shared: shared || undefined,
         sharedWithName: shared ? sharedWithName.trim() : undefined,
         sharedAmount: shared && sharedAmount ? Number(sharedAmount) : undefined,
-        installments: installmentsNum > 1 ? installmentsNum : undefined
+        installments: installmentsNum() > 1 ? installmentsNum() : undefined
       };
       const tx = await api.post<Transaction>('/api/v1/transactions', body);
       onSaved(tx);
@@ -484,7 +459,7 @@ function TransactionForm({
     <form onSubmit={onSubmit} className="card" style={{ marginTop: 22, display: 'grid', gap: 12 }}>
       <Field label="Descripción" type="text" value={description} onChange={setDescription}
              placeholder="¿En qué gastaste?" />
-      <Field label="Monto" type="number" value={amount} onChange={setAmount}
+      <MoneyField label="Monto" value={amount} onChange={setAmount}
              placeholder="50000" hint="Debe ser mayor a 0." />
 
       <div style={{ display: 'grid', gap: 6 }}>
@@ -545,8 +520,6 @@ function TransactionForm({
         </p>
       )}
 
-      {/* Único punto donde se explica un bloqueo por origen — vibra para
-          que no pase inadvertido, y se repite mientras siga vigente. */}
       {originWarning && <BlockingWarning message={originWarning} />}
 
       <Select label="Categoría (opcional)" value={category} onChange={setCategory}>
@@ -566,8 +539,8 @@ function TransactionForm({
         <>
           <Field label="¿Con quién?" type="text" value={sharedWithName} onChange={setSharedWithName}
                  placeholder="Nombre de la persona" />
-          <Field label="Monto a cobrar (opcional)" type="number" value={sharedAmount} onChange={setSharedAmount}
-                 placeholder="50000" />
+          <MoneyField label="Monto a cobrar (opcional)" value={sharedAmount} onChange={setSharedAmount}
+                 placeholder="25000" />
         </>
       )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { api } from '../lib/api';
-import { Field } from './Login';
+import { MoneyField } from '../components/MoneyField';
 import { BlockingWarning } from '../components/BlockingWarning';
 import { money } from '../lib/money';
 import { errorMessage } from '../lib/errorMessage';
@@ -169,9 +169,8 @@ function CashOpForm({
       style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)',
                display: 'grid', gap: 10 }}
     >
-      <Field
+      <MoneyField
         label={operation === 'ADD' ? 'Monto a agregar' : 'Monto a retirar'}
-        type="number"
         value={amount}
         onChange={setAmount}
         placeholder="50000"
