@@ -173,9 +173,9 @@ export interface FixedDebt {
   institution: string;
   description?: string;
   totalAmount: number;
-  monthlyPayment: number;
+  monthlyPayment?: number;
   interestRate?: number;
-  paymentDueDay: number;
+  paymentDueDay?: number;
   remainingBalance: number;
   paidAmount: number;
   progressPercentage: number;

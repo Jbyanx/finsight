@@ -86,7 +86,7 @@ public class FinancialServiceImpl implements FinancialService {
 
         BigDecimal totalMonthlyDebt = fixedDebtRepository
                 .findAllByUserIdAndActiveTrue(userId).stream()
-                .map(d -> d.getMonthlyPayment())
+                .map(d -> d.getMonthlyPayment() != null ? d.getMonthlyPayment() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // --- Ingresos y gastos operativos ---
