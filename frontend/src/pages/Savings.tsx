@@ -128,7 +128,7 @@ export default function Savings() {
   return (
     <main>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <p className="eyebrow">Tus ahorros</p>
+        <p className="eyebrow">Tus cuentas</p>
         {!adding && (
           <button
             className="btn btn-ghost"

@@ -6,6 +6,8 @@ import { UtilizationBar } from '../components/UtilizationBar';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { errorMessage } from '../lib/errorMessage';
+import { money } from '../lib/money';
+import { recommendedPayment, formatNextOccurrence } from '../lib/cardHealth';
 import type { CreditCard } from '../types';
 
 /** Alta: espeja CreditCardRequest. institution solo se define al crear. */
@@ -144,12 +146,20 @@ export default function Cards() {
                 </p>
                 {/* Mientras se edita, el formulario ocupa el lugar de la barra. */}
                 {!editing && (
-                  <UtilizationBar
-                    used={c.usedAmount}
-                    limit={c.creditLimit}
-                    available={c.availableAmount}
-                    utilization={c.utilizationPercentage}
-                  />
+                  <>
+                    <UtilizationBar
+                      used={c.usedAmount}
+                      limit={c.creditLimit}
+                      available={c.availableAmount}
+                      utilization={c.utilizationPercentage}
+                    />
+                    {c.utilizationStatus !== 'SAFE' && (
+                      <p style={{ marginTop: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
+                        Paga {money(recommendedPayment(c))} antes del corte ({formatNextOccurrence(c.cutOffDay)})
+                        para no facturar por encima del 30% de tu cupo.
+                      </p>
+                    )}
+                  </>
                 )}
                 {/* Editar abierto → botón ACTIVO (relleno --ink) y Eliminar
                     atenuado, mismo patrón que Savings. El activo cierra al tocar. */}
@@ -296,8 +306,15 @@ function CardForm({
           <p style={{ fontWeight: 600, fontSize: 15 }}>{institution}</p>
         </div>
       ) : (
-        <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-               placeholder="Bancolombia" />
+        <>
+          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+            Esto es para tarjetas de <strong style={{ color: 'var(--ink)' }}>crédito</strong> —
+            con cupo, corte y utilización. Si es una tarjeta débito o cuenta bancaria,
+            regístrala en <strong style={{ color: 'var(--ink)' }}>Cuentas</strong>.
+          </p>
+          <Field label="Institución" type="text" value={institution} onChange={setInstitution}
+                placeholder="Bancolombia" />
+        </>
       )}
       <Field label="Apodo (opcional)" type="text" value={nickname} onChange={setNickname}
              placeholder="Mi tarjeta de viajes" />
