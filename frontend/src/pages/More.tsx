@@ -13,6 +13,7 @@ const SECTIONS: Section[] = [
   { to: '/invoices', label: 'Facturas', desc: 'Pagos recurrentes',     icon: <InvoiceIcon /> },
   { to: '/income',   label: 'Ingresos', desc: 'Fuentes y entradas',    icon: <IncomeIcon /> },
   { to: '/cash',     label: 'Efectivo', desc: 'Dinero en mano',        icon: <CashIcon /> },
+  { to: '/telegram', label: 'Bot de Telegram', desc: 'Vincula tu cuenta', icon: <TelegramIcon /> },
   { to: '/profile',  label: 'Perfil',   desc: 'Cuenta y sesiones',     icon: <ProfileIcon /> },
 ];
 
@@ -106,6 +107,15 @@ function ProfileIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
       <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
+function TelegramIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 2L11 13" />
+      <path d="M22 2l-7 20-4-9-9-4 20-7z" />
     </svg>
   );
 }
