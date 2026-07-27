@@ -9,7 +9,7 @@ import { errorMessage } from '../lib/errorMessage';
 import { InlineAlert } from '../components/InlineAlert';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import type {
-  IncomeSource, OperationalExpense, IncomeEntry, SavingsAccount, Pocket, Cash,
+  IncomeSource, OperationalExpense, IncomeEntry, SavingsAccount, Pocket,
   IncomeType, IncomeFrequency, DestinationType, Page
 } from '../types';
 
@@ -65,12 +65,6 @@ const activeBtn = {
   background: 'var(--ink)',
   color: 'var(--paper)',
   borderColor: 'var(--ink)'
-} as const;
-
-const dimBtn = {
-  ...smallBtn,
-  color: 'var(--muted)',
-  opacity: 0.55
 } as const;
 
 export default function Income() {
@@ -354,7 +348,7 @@ function EntryForm({
               type="button"
               className="btn btn-ghost"
               onClick={() => setDestinationType(d)}
-              style={{ flex: 1, fontSize: 13, ...(destinationType === d ? activeBtn : smallBtn) }}
+              style={{ flex: 1, ...(destinationType === d ? activeBtn : smallBtn) }}
             >
               {DESTINATION_LABELS[d]}
             </button>
