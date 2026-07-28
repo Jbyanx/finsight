@@ -2,6 +2,7 @@ package dev.jbyanx.finsight.domain.card.service.impl;
 
 import dev.jbyanx.finsight.domain.auth.entity.User;
 import dev.jbyanx.finsight.domain.auth.repository.UserRepository;
+import dev.jbyanx.finsight.domain.card.dto.CardPaymentRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardPatchRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardResponse;
@@ -9,6 +10,10 @@ import dev.jbyanx.finsight.domain.card.entity.CreditCard;
 import dev.jbyanx.finsight.domain.card.mapper.CreditCardMapper;
 import dev.jbyanx.finsight.domain.card.repository.CreditCardRepository;
 import dev.jbyanx.finsight.domain.card.service.CreditCardService;
+import dev.jbyanx.finsight.domain.transaction.dto.TransactionRequest;
+import dev.jbyanx.finsight.domain.transaction.entity.Transaction;
+import dev.jbyanx.finsight.domain.transaction.service.TransactionService;
+import dev.jbyanx.finsight.shared.exception.BusinessRuleException;
 import dev.jbyanx.finsight.shared.exception.InvalidCreditLimitException;
 import dev.jbyanx.finsight.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +29,7 @@ public class CreditCardServiceImpl implements CreditCardService {
     private final CreditCardRepository creditCardRepository;
     private final UserRepository userRepository;
     private final CreditCardMapper creditCardMapper;
+    private final TransactionService transactionService;
 
     @Override
     @Transactional
@@ -102,6 +108,54 @@ public class CreditCardServiceImpl implements CreditCardService {
         return creditCardMapper.toResponseList(
                 creditCardRepository.findAllByUserIdOrderByUtilizationAsc(userId)
         );
+    }
+
+    @Override
+    @Transactional
+    public CreditCardResponse applyPayment(String userId, String cardId,
+                                           CardPaymentRequest request) {
+        CreditCard card = findCardBelongingToUser(userId, cardId);
+
+        // El descuento de la fuente va PRIMERO: create() valida el saldo disponible
+        // y lanza si no alcanza, así la tarjeta no se toca. Todo bajo la misma
+        // @Transactional — mismo orden que FixedDebt.applyPayment.
+        if (request.getOriginType() != null) {
+            discountFromSource(userId, card, request);
+        }
+
+        card.applyPayment(request.getAmount());
+
+        return creditCardMapper.toResponse(creditCardRepository.save(card));
+    }
+
+    /**
+     * Delega en TransactionService: ahí ya vive la validación de saldo, el manejo
+     * de bolsillos y dinero de terceros, y el descuento. Deja el movimiento
+     * trazable en el historial en vez de que la plata desaparezca sin rastro.
+     * Mismo patrón que FixedDebtServiceImpl.discountFromSource.
+     */
+    private void discountFromSource(String userId, CreditCard card, CardPaymentRequest request) {
+        Transaction.OriginType originType = request.getOriginType();
+
+        if (originType == Transaction.OriginType.CREDIT_CARD) {
+            throw new BusinessRuleException(
+                    "A credit card cannot be paid with another credit card: that moves "
+                            + "the debt instead of settling it. Use CASH or SAVINGS.");
+        }
+
+        if (originType == Transaction.OriginType.SAVINGS && request.getSavingsAccountId() == null) {
+            throw new BusinessRuleException(
+                    "savingsAccountId is required when originType is SAVINGS");
+        }
+
+        transactionService.create(userId, TransactionRequest.builder()
+                .description("Pago tarjeta " + card.getInstitution())
+                .category("Tarjeta")
+                .amount(request.getAmount())
+                .originType(originType)
+                .savingsAccountId(request.getSavingsAccountId())
+                .pocketId(request.getPocketId())
+                .build());
     }
 
     // Regla de negocio: el nuevo límite no puede ser menor al saldo utilizado.

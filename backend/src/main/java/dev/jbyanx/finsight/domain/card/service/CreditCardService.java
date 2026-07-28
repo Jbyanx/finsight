@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.card.service;
 
+import dev.jbyanx.finsight.domain.card.dto.CardPaymentRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardPatchRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardResponse;
@@ -20,4 +21,6 @@ public interface CreditCardService {
     List<CreditCardResponse> getOrderedByUtilization(String userId);
 
     CreditCardResponse patch(String userId, String cardId, CreditCardPatchRequest request);
+
+    CreditCardResponse applyPayment(String userId, String cardId, CardPaymentRequest request);
 }

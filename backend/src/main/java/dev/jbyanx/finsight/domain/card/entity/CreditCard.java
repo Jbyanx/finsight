@@ -1,6 +1,7 @@
 package dev.jbyanx.finsight.domain.card.entity;
 
 import dev.jbyanx.finsight.domain.auth.entity.User;
+import dev.jbyanx.finsight.shared.exception.PaymentExceedsCardBalanceException;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -60,6 +61,13 @@ public class CreditCard {
         return usedAmount
                 .multiply(BigDecimal.valueOf(100))
                 .divide(creditLimit, 2, java.math.RoundingMode.HALF_UP);
+    }
+
+    public void applyPayment(BigDecimal amount) {
+        if (amount.compareTo(usedAmount) > 0) {
+            throw new PaymentExceedsCardBalanceException(usedAmount.toString());
+        }
+        usedAmount = usedAmount.subtract(amount);
     }
 
     public boolean isYellowAlert() {
