@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import { api } from '../lib/api';
-import { Field } from './Login';
-import { money } from '../lib/money';
-import { errorMessage } from '../lib/errorMessage';
-import { InlineAlert } from '../components/InlineAlert';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { SavingsAccount, Pocket } from '../types';
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { api } from "../lib/api";
+import { Field } from "./Login";
+import { money } from "../lib/money";
+import { errorMessage } from "../lib/errorMessage";
+import { InlineAlert } from "../components/InlineAlert";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import type { SavingsAccount, Pocket } from "../types";
+import { MoneyField } from "../components/MoneyField";
 
 /* ============================================================
    Cuentas de ahorro y bolsillos.
@@ -63,14 +64,16 @@ export default function Savings() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<SavingsAccount | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<SavingsAccount | null>(
+    null,
+  );
 
   async function load() {
     setError(null);
     try {
-      setAccounts(await api.get<SavingsAccount[]>('/api/v1/savings'));
+      setAccounts(await api.get<SavingsAccount[]>("/api/v1/savings"));
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos cargar tus cuentas.'));
+      setError(errorMessage(err, "No pudimos cargar tus cuentas."));
     }
   }
 
@@ -95,7 +98,7 @@ export default function Savings() {
    * tocar un bolsillo, recargamos esa cuenta y no solo su lista de bolsillos.
    */
   async function refreshAccount(accountId: string) {
-    const fresh = await api.get<SavingsAccount>('/api/v1/savings/' + accountId);
+    const fresh = await api.get<SavingsAccount>("/api/v1/savings/" + accountId);
     upsert(fresh);
   }
 
@@ -104,10 +107,12 @@ export default function Savings() {
     setError(null);
     setDeletingId(account.id);
     try {
-      await api.del('/api/v1/savings/' + account.id);
-      setAccounts((prev) => (prev ? prev.filter((a) => a.id !== account.id) : prev));
+      await api.del("/api/v1/savings/" + account.id);
+      setAccounts((prev) =>
+        prev ? prev.filter((a) => a.id !== account.id) : prev,
+      );
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos eliminar la cuenta.'));
+      setError(errorMessage(err, "No pudimos eliminar la cuenta."));
     } finally {
       setDeletingId(null);
     }
@@ -124,20 +129,31 @@ export default function Savings() {
   if (!accounts) {
     return (
       <main>
-        <p style={{ color: 'var(--muted)' }}>Cargando…</p>
+        <p style={{ color: "var(--muted)" }}>Cargando…</p>
       </main>
     );
   }
 
   return (
     <main>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <p className="eyebrow">Tus cuentas</p>
         {!adding && (
           <button
             className="btn btn-ghost"
             onClick={() => setAdding(true)}
-            style={{ width: 'auto', padding: '6px 10px', fontSize: 13, borderColor: 'var(--line)' }}
+            style={{
+              width: "auto",
+              padding: "6px 10px",
+              fontSize: 13,
+              borderColor: "var(--line)",
+            }}
           >
             Agregar cuenta
           </button>
@@ -157,13 +173,21 @@ export default function Savings() {
       )}
 
       {!adding && accounts.length === 0 && (
-        <div className="card" style={{ marginTop: 22, color: 'var(--muted)', fontSize: 14, lineHeight: 1.5 }}>
+        <div
+          className="card"
+          style={{
+            marginTop: 22,
+            color: "var(--muted)",
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
           Todavía no tienes cuentas de ahorro. Agrega la primera para separar lo
           tuyo de lo que guardas para terceros.
         </div>
       )}
 
-      <section style={{ marginTop: 22, display: 'grid', gap: 12 }}>
+      <section style={{ marginTop: 22, display: "grid", gap: 12 }}>
         {accounts.map((acc) =>
           editingId === acc.id ? (
             <AccountForm
@@ -181,20 +205,25 @@ export default function Savings() {
               account={acc}
               expanded={expandedId === acc.id}
               deleting={deletingId === acc.id}
-              onToggle={() => setExpandedId((id) => (id === acc.id ? null : acc.id))}
+              onToggle={() =>
+                setExpandedId((id) => (id === acc.id ? null : acc.id))
+              }
               onEdit={() => setEditingId(acc.id)}
               onDelete={() => setPendingDelete(acc)}
               onPocketChange={() => refreshAccount(acc.id)}
             />
-          )
+          ),
         )}
       </section>
 
       {pendingDelete && (
         <ConfirmDialog
           title="Eliminar cuenta"
-          message={'¿Eliminar "' + (pendingDelete.nickname || pendingDelete.institution) +
-                   '"? Se borrarán también sus bolsillos.'}
+          message={
+            '¿Eliminar "' +
+            (pendingDelete.nickname || pendingDelete.institution) +
+            '"? Se borrarán también sus bolsillos.'
+          }
           confirmLabel="Eliminar cuenta"
           tone="danger"
           onConfirm={() => confirmDeleteAccount(pendingDelete)}
@@ -212,7 +241,7 @@ function AccountCard({
   onToggle,
   onEdit,
   onDelete,
-  onPocketChange
+  onPocketChange,
 }: {
   account: SavingsAccount;
   expanded: boolean;
@@ -226,17 +255,19 @@ function AccountCard({
   const [editingPocketId, setEditingPocketId] = useState<string | null>(null);
   const [pocketError, setPocketError] = useState<string | null>(null);
   const [deletingPocketId, setDeletingPocketId] = useState<string | null>(null);
-  const [pendingDeletePocket, setPendingDeletePocket] = useState<Pocket | null>(null);
+  const [pendingDeletePocket, setPendingDeletePocket] = useState<Pocket | null>(
+    null,
+  );
 
   async function confirmDeletePocket(pocket: Pocket) {
     setPendingDeletePocket(null);
     setPocketError(null);
     setDeletingPocketId(pocket.id);
     try {
-      await api.del('/api/v1/savings/' + account.id + '/pockets/' + pocket.id);
+      await api.del("/api/v1/savings/" + account.id + "/pockets/" + pocket.id);
       onPocketChange();
     } catch (err) {
-      setPocketError(errorMessage(err, 'No pudimos eliminar el bolsillo.'));
+      setPocketError(errorMessage(err, "No pudimos eliminar el bolsillo."));
     } finally {
       setDeletingPocketId(null);
     }
@@ -250,9 +281,13 @@ function AccountCard({
   return (
     <div className="card">
       <div>
-        <p style={{ fontWeight: 600, fontSize: 15 }}>{account.nickname || account.institution}</p>
+        <p style={{ fontWeight: 600, fontSize: 15 }}>
+          {account.nickname || account.institution}
+        </p>
         {account.nickname && (
-          <p className="eyebrow" style={{ marginTop: 2 }}>{account.institution}</p>
+          <p className="eyebrow" style={{ marginTop: 2 }}>
+            {account.institution}
+          </p>
         )}
       </div>
 
@@ -262,45 +297,79 @@ function AccountCard({
           withdraw (balance, ownBalance y sharedTotal no se mueven). */}
       <div style={{ marginTop: 14 }}>
         <span className="eyebrow">Disponible</span>
-        <p className="amount" style={{ fontSize: 28, fontWeight: 800, marginTop: 2 }}>
+        <p
+          className="amount"
+          style={{ fontSize: 28, fontWeight: 800, marginTop: 2 }}
+        >
           {money(account.availableBalance)}
         </p>
       </div>
 
-      <div style={{ marginTop: 12, display: 'grid', gap: 6 }}>
+      <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
         <InfoRow label="Balance total" value={money(account.balance)} />
         {pocketed > 0 && (
           <InfoRow label="Apartado en bolsillos" value={money(pocketed)} />
         )}
         {account.sharedTotal > 0 && (
-          <InfoRow label="De terceros" value={money(account.sharedTotal)} muted />
+          <InfoRow
+            label="De terceros"
+            value={money(account.sharedTotal)}
+            muted
+          />
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost" onClick={onToggle} disabled={deleting}
-                style={{ ...(expanded ? activeBtn : smallBtn),
-                         display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {expanded ? 'Ocultar bolsillos' : 'Ver bolsillos (' + account.pockets.length + ')'}
+      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+        <button
+          className="btn btn-ghost"
+          onClick={onToggle}
+          disabled={deleting}
+          style={{
+            ...(expanded ? activeBtn : smallBtn),
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {expanded
+            ? "Ocultar bolsillos"
+            : "Ver bolsillos (" + account.pockets.length + ")"}
           <Chevron open={expanded} />
         </button>
-        <button className="btn btn-ghost" onClick={onEdit} disabled={deleting} style={smallBtn}>
+        <button
+          className="btn btn-ghost"
+          onClick={onEdit}
+          disabled={deleting}
+          style={smallBtn}
+        >
           Editar
         </button>
-        <button className="btn btn-ghost" onClick={onDelete} disabled={deleting}
-                style={{ ...smallBtn, color: 'var(--danger)' }}>
-          {deleting ? 'Eliminando…' : 'Eliminar'}
+        <button
+          className="btn btn-ghost"
+          onClick={onDelete}
+          disabled={deleting}
+          style={{ ...smallBtn, color: "var(--danger)" }}
+        >
+          {deleting ? "Eliminando…" : "Eliminar"}
         </button>
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 16, borderTop: '1px solid var(--line)', paddingTop: 16,
-                      display: 'grid', gap: 12 }}>
+        <div
+          style={{
+            marginTop: 16,
+            borderTop: "1px solid var(--line)",
+            paddingTop: 16,
+            display: "grid",
+            gap: 12,
+          }}
+        >
           {pocketError && <InlineAlert message={pocketError} />}
 
           {account.pockets.length === 0 && !addingPocket && (
-            <p style={{ color: 'var(--muted)', fontSize: 13 }}>
-              Sin bolsillos. Crea uno para reservar dinero hacia una meta o para un tercero.
+            <p style={{ color: "var(--muted)", fontSize: 13 }}>
+              Sin bolsillos. Crea uno para reservar dinero hacia una meta o para
+              un tercero.
             </p>
           )}
 
@@ -326,7 +395,7 @@ function AccountCard({
                 onDelete={() => setPendingDeletePocket(p)}
                 onOperated={onPocketChange}
               />
-            )
+            ),
           )}
 
           {addingPocket ? (
@@ -339,8 +408,11 @@ function AccountCard({
               }}
             />
           ) : (
-            <button className="btn btn-ghost" onClick={() => setAddingPocket(true)}
-                    style={{ borderColor: 'var(--line)' }}>
+            <button
+              className="btn btn-ghost"
+              onClick={() => setAddingPocket(true)}
+              style={{ borderColor: "var(--line)" }}
+            >
               Agregar bolsillo
             </button>
           )}
@@ -350,8 +422,11 @@ function AccountCard({
       {pendingDeletePocket && (
         <ConfirmDialog
           title="Eliminar bolsillo"
-          message={'¿Eliminar el bolsillo "' + pendingDeletePocket.name +
-                   '"? Su saldo vuelve al disponible de la cuenta.'}
+          message={
+            '¿Eliminar el bolsillo "' +
+            pendingDeletePocket.name +
+            '"? Su saldo vuelve al disponible de la cuenta.'
+          }
           confirmLabel="Eliminar bolsillo"
           tone="danger"
           onConfirm={() => confirmDeletePocket(pendingDeletePocket)}
@@ -368,7 +443,7 @@ function PocketRow({
   deleting,
   onEdit,
   onDelete,
-  onOperated
+  onOperated,
 }: {
   pocket: Pocket;
   accountId: string;
@@ -380,26 +455,38 @@ function PocketRow({
   const isShared = pocket.shared;
   // El usuario piensa "agrego $50.000", no en un total nuevo: abrimos un input de
   // MONTO. Solo una operación abierta a la vez por bolsillo.
-  const [op, setOp] = useState<'deposit' | 'withdraw' | null>(null);
+  const [op, setOp] = useState<"deposit" | "withdraw" | null>(null);
 
   return (
-    <div style={{
-      opacity: isShared ? 0.55 : 1,
-      border: '1px solid var(--line)',
-      borderRadius: 10,
-      padding: 12,
-      background: 'var(--paper)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+    <div
+      style={{
+        opacity: isShared ? 0.55 : 1,
+        border: "1px solid var(--line)",
+        borderRadius: 10,
+        padding: 12,
+        background: "var(--paper)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "baseline",
+        }}
+      >
         <div>
           <span style={{ fontWeight: 600, fontSize: 14 }}>{pocket.name}</span>
           {isShared && pocket.sharedOwnerName && (
-            <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 8 }}>
+            <span
+              style={{ fontSize: 12, color: "var(--muted)", marginLeft: 8 }}
+            >
               de {pocket.sharedOwnerName}
             </span>
           )}
         </div>
-        <span className="amount" style={{ fontSize: 14 }}>{money(pocket.balance)}</span>
+        <span className="amount" style={{ fontSize: 14 }}>
+          {money(pocket.balance)}
+        </span>
       </div>
 
       {/* Meta solo para bolsillos propios: barra sobria, 100% es lo bueno. */}
@@ -414,26 +501,40 @@ function PocketRow({
       {/* El botón de la operación abierta se ve ACTIVO (relleno --ink); el resto
           se atenúa. Así el usuario ve en qué acción está sin leer el formulario.
           El activo se puede volver a tocar para cerrar. */}
-      <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-        <button className="btn btn-ghost"
-                onClick={() => setOp((cur) => (cur === 'deposit' ? null : 'deposit'))}
-                disabled={deleting || op === 'withdraw'}
-                style={op === 'deposit' ? activeBtn : op ? dimBtn : smallBtn}>
+      <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+        <button
+          className="btn btn-ghost"
+          onClick={() => setOp((cur) => (cur === "deposit" ? null : "deposit"))}
+          disabled={deleting || op === "withdraw"}
+          style={op === "deposit" ? activeBtn : op ? dimBtn : smallBtn}
+        >
           Agregar
         </button>
-        <button className="btn btn-ghost"
-                onClick={() => setOp((cur) => (cur === 'withdraw' ? null : 'withdraw'))}
-                disabled={deleting || op === 'deposit'}
-                style={op === 'withdraw' ? activeBtn : op ? dimBtn : smallBtn}>
+        <button
+          className="btn btn-ghost"
+          onClick={() =>
+            setOp((cur) => (cur === "withdraw" ? null : "withdraw"))
+          }
+          disabled={deleting || op === "deposit"}
+          style={op === "withdraw" ? activeBtn : op ? dimBtn : smallBtn}
+        >
           Retirar
         </button>
-        <button className="btn btn-ghost" onClick={onEdit} disabled={deleting}
-                style={op ? dimBtn : smallBtn}>
+        <button
+          className="btn btn-ghost"
+          onClick={onEdit}
+          disabled={deleting}
+          style={op ? dimBtn : smallBtn}
+        >
           Editar
         </button>
-        <button className="btn btn-ghost" onClick={onDelete} disabled={deleting}
-                style={op ? dimBtn : { ...smallBtn, color: 'var(--danger)' }}>
-          {deleting ? 'Eliminando…' : 'Eliminar'}
+        <button
+          className="btn btn-ghost"
+          onClick={onDelete}
+          disabled={deleting}
+          style={op ? dimBtn : { ...smallBtn, color: "var(--danger)" }}
+        >
+          {deleting ? "Eliminando…" : "Eliminar"}
         </button>
       </div>
 
@@ -464,27 +565,32 @@ function PocketAmountForm({
   pocket,
   op,
   onCancel,
-  onDone
+  onDone,
 }: {
   accountId: string;
   pocket: Pocket;
-  op: 'deposit' | 'withdraw';
+  op: "deposit" | "withdraw";
   onCancel: () => void;
   onDone: () => void;
 }) {
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const amountNum = Number(amount);
-  const valid = amount.trim() !== '' && Number.isFinite(amountNum) && amountNum > 0;
+  const valid =
+    amount.trim() !== "" && Number.isFinite(amountNum) && amountNum > 0;
 
   // El formulario declara su acción sin ambigüedad: título en pregunta, acento y
   // etiqueta del confirmar propios de agregar (--ink) o retirar (--danger).
-  const isWithdraw = op === 'withdraw';
-  const accent = isWithdraw ? 'var(--danger)' : 'var(--ink)';
-  const title = isWithdraw ? '¿Cuánto quieres retirar?' : '¿Cuánto quieres agregar?';
-  const confirmLabel = isWithdraw ? 'Retirar del bolsillo' : 'Agregar al bolsillo';
+  const isWithdraw = op === "withdraw";
+  const accent = isWithdraw ? "var(--danger)" : "var(--ink)";
+  const title = isWithdraw
+    ? "¿Cuánto quieres retirar?"
+    : "¿Cuánto quieres agregar?";
+  const confirmLabel = isWithdraw
+    ? "Retirar del bolsillo"
+    : "Agregar al bolsillo";
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -493,43 +599,67 @@ function PocketAmountForm({
     setBusy(true);
     try {
       await api.post<Pocket>(
-        '/api/v1/savings/' + accountId + '/pockets/' + pocket.id + '/' + op,
-        { amount: amountNum }
+        "/api/v1/savings/" + accountId + "/pockets/" + pocket.id + "/" + op,
+        { amount: amountNum },
       );
       onDone();
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos completar la operación.'));
+      setError(errorMessage(err, "No pudimos completar la operación."));
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit}
-          style={{ marginTop: 10, display: 'grid', gap: 10,
-                   border: '1px solid ' + accent, borderRadius: 10, padding: 12 }}>
+    <form
+      onSubmit={onSubmit}
+      style={{
+        marginTop: 10,
+        display: "grid",
+        gap: 10,
+        border: "1px solid " + accent,
+        borderRadius: 10,
+        padding: 12,
+      }}
+    >
       <p style={{ fontWeight: 600, fontSize: 14 }}>{title}</p>
-      <Field
+      <MoneyField
         label="Monto"
-        type="number"
         value={amount}
         onChange={setAmount}
         placeholder="50000"
-        hint={isWithdraw
-          ? 'Vuelve al disponible de la cuenta.'
-          : 'Sale del disponible de la cuenta.'}
+        hint={
+          isWithdraw
+            ? "Vuelve al disponible de la cuenta."
+            : "Sale del disponible de la cuenta."
+        }
       />
 
       {error && <InlineAlert message={error} />}
 
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn" type="submit" disabled={busy || !valid}
-                style={{ width: 'auto', padding: '8px 16px', fontSize: 13,
-                         background: accent, borderColor: accent, color: 'var(--paper)',
-                         opacity: busy || !valid ? 0.5 : 1 }}>
-          {busy ? 'Procesando…' : confirmLabel}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          className="btn"
+          type="submit"
+          disabled={busy || !valid}
+          style={{
+            width: "auto",
+            padding: "8px 16px",
+            fontSize: 13,
+            background: accent,
+            borderColor: accent,
+            color: "var(--paper)",
+            opacity: busy || !valid ? 0.5 : 1,
+          }}
+        >
+          {busy ? "Procesando…" : confirmLabel}
         </button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
-                style={smallBtn}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onCancel}
+          disabled={busy}
+          style={smallBtn}
+        >
           Cancelar
         </button>
       </div>
@@ -542,19 +672,46 @@ function PocketAmountForm({
  * hay umbral de peligro ni color de alerta. Llegar al 100% es el objetivo, así que
  * se llena en verde sobrio hacia una meta, sin marcas rojas.
  */
-function GoalBar({ balance, goal, progress }: { balance: number; goal: number; progress: number }) {
+function GoalBar({
+  balance,
+  goal,
+  progress,
+}: {
+  balance: number;
+  goal: number;
+  progress: number;
+}) {
   const fill = Math.min(Math.max(progress, 0), 100);
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ height: 6, borderRadius: 999, background: 'var(--line)' }}>
-        <div style={{ width: fill + '%', height: '100%', borderRadius: 999,
-                      background: 'var(--safe)', transition: 'width .4s ease' }} />
+      <div style={{ height: 6, borderRadius: 999, background: "var(--line)" }}>
+        <div
+          style={{
+            width: fill + "%",
+            height: "100%",
+            borderRadius: 999,
+            background: "var(--safe)",
+            transition: "width .4s ease",
+          }}
+        />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span className="amount" style={{ fontSize: 12, color: 'var(--muted)' }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 6,
+        }}
+      >
+        <span
+          className="amount"
+          style={{ fontSize: 12, color: "var(--muted)" }}
+        >
           {money(balance)} <span style={{ opacity: 0.5 }}>/ {money(goal)}</span>
         </span>
-        <span className="amount" style={{ fontSize: 12, color: 'var(--safe)', fontWeight: 700 }}>
+        <span
+          className="amount"
+          style={{ fontSize: 12, color: "var(--safe)", fontWeight: 700 }}
+        >
           {fill.toFixed(0)}%
         </span>
       </div>
@@ -565,7 +722,7 @@ function GoalBar({ balance, goal, progress }: { balance: number; goal: number; p
 function AccountForm({
   initial,
   onCancel,
-  onSaved
+  onSaved,
 }: {
   initial?: SavingsAccount;
   onCancel: () => void;
@@ -573,19 +730,23 @@ function AccountForm({
 }) {
   const editing = initial != null;
 
-  const [institution, setInstitution] = useState(initial?.institution ?? '');
-  const [nickname, setNickname] = useState(initial?.nickname ?? '');
-  const [balance, setBalance] = useState(initial ? String(initial.balance) : '');
+  const [institution, setInstitution] = useState(initial?.institution ?? "");
+  const [nickname, setNickname] = useState(initial?.nickname ?? "");
+  const [balance, setBalance] = useState(
+    initial ? String(initial.balance) : "",
+  );
   const [shared, setShared] = useState(initial?.shared ?? false);
-  const [sharedOwnerName, setSharedOwnerName] = useState(initial?.sharedOwnerName ?? '');
+  const [sharedOwnerName, setSharedOwnerName] = useState(
+    initial?.sharedOwnerName ?? "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const balanceNum = Number(balance);
   const valid =
-    (editing || institution.trim() !== '') &&
-    (editing || (balance.trim() !== '' && balanceNum >= 0)) &&
-    (!shared || sharedOwnerName.trim() !== '');
+    (editing || institution.trim() !== "") &&
+    (editing || (balance.trim() !== "" && balanceNum >= 0)) &&
+    (!shared || sharedOwnerName.trim() !== "");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -598,28 +759,35 @@ function AccountForm({
         const body: SavingsAccountPatchRequest = {
           nickname: nickname.trim(),
           shared,
-          sharedOwnerName: shared ? sharedOwnerName.trim() : ''
+          sharedOwnerName: shared ? sharedOwnerName.trim() : "",
         };
-        account = await api.patch<SavingsAccount>('/api/v1/savings/' + initial.id, body);
+        account = await api.patch<SavingsAccount>(
+          "/api/v1/savings/" + initial.id,
+          body,
+        );
       } else {
         const body: SavingsAccountRequest = {
           institution: institution.trim(),
           nickname: nickname.trim(),
           balance: balanceNum,
           shared,
-          sharedOwnerName: shared ? sharedOwnerName.trim() : ''
+          sharedOwnerName: shared ? sharedOwnerName.trim() : "",
         };
-        account = await api.post<SavingsAccount>('/api/v1/savings', body);
+        account = await api.post<SavingsAccount>("/api/v1/savings", body);
       }
       onSaved(account);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos guardar la cuenta.'));
+      setError(errorMessage(err, "No pudimos guardar la cuenta."));
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="card" style={{ marginTop: 22, display: 'grid', gap: 12 }}>
+    <form
+      onSubmit={onSubmit}
+      className="card"
+      style={{ marginTop: 22, display: "grid", gap: 12 }}
+    >
       {editing ? (
         <>
           <ReadOnly label="Institución" value={institution} />
@@ -627,36 +795,66 @@ function AccountForm({
         </>
       ) : (
         <>
-          <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-                 placeholder="Nu" />
-          <Field label="Saldo" type="number" value={balance} onChange={setBalance}
-                 placeholder="1500000" hint="No puede ser negativo." />
+          <Field
+            label="Institución"
+            type="text"
+            value={institution}
+            onChange={setInstitution}
+            placeholder="Nu"
+          />
+          <MoneyField
+            label="Saldo"
+            value={balance}
+            onChange={setBalance}
+            placeholder="1500000"
+            hint="No puede ser negativo."
+          />
         </>
       )}
-      <Field label="Apodo (opcional)" type="text" value={nickname} onChange={setNickname}
-             placeholder="Mi cuenta de ahorros" />
+      <Field
+        label="Apodo (opcional)"
+        type="text"
+        value={nickname}
+        onChange={setNickname}
+        placeholder="Mi cuenta de ahorros"
+      />
 
       <Toggle
         label="Es una cuenta de terceros"
         checked={shared}
         onChange={(v) => {
           setShared(v);
-          if (!v) setSharedOwnerName('');
+          if (!v) setSharedOwnerName("");
         }}
       />
       {shared && (
-        <Field label="Dueño real" type="text" value={sharedOwnerName} onChange={setSharedOwnerName}
-               placeholder="Mamá" hint="Nombre de quien es realmente el dinero." />
+        <Field
+          label="Dueño real"
+          type="text"
+          value={sharedOwnerName}
+          onChange={setSharedOwnerName}
+          placeholder="Mamá"
+          hint="Nombre de quien es realmente el dinero."
+        />
       )}
 
       {error && <InlineAlert message={error} />}
 
-      <button className="btn" type="submit" disabled={busy || !valid}
-              style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
-        {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar cuenta'}
+      <button
+        className="btn"
+        type="submit"
+        disabled={busy || !valid}
+        style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}
+      >
+        {busy ? "Guardando…" : editing ? "Guardar cambios" : "Guardar cuenta"}
       </button>
-      <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
-              style={{ borderColor: 'var(--line)' }}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={onCancel}
+        disabled={busy}
+        style={{ borderColor: "var(--line)" }}
+      >
         Cancelar
       </button>
     </form>
@@ -667,7 +865,7 @@ function PocketForm({
   accountId,
   initial,
   onCancel,
-  onSaved
+  onSaved,
 }: {
   accountId: string;
   initial?: Pocket;
@@ -677,25 +875,30 @@ function PocketForm({
   const editing = initial != null;
   const hadGoal = initial?.goalAmount != null && initial.goalAmount > 0;
 
-  const [name, setName] = useState(initial?.name ?? '');
-  const [balance, setBalance] = useState(initial ? String(initial.balance) : '');
+  const [name, setName] = useState(initial?.name ?? "");
+  const [balance, setBalance] = useState(
+    initial ? String(initial.balance) : "",
+  );
   const [goalAmount, setGoalAmount] = useState(
-    hadGoal ? String(initial?.goalAmount) : ''
+    hadGoal ? String(initial?.goalAmount) : "",
   );
   const [removeGoal, setRemoveGoal] = useState(false);
   const [shared, setShared] = useState(initial?.shared ?? false);
-  const [sharedOwnerName, setSharedOwnerName] = useState(initial?.sharedOwnerName ?? '');
+  const [sharedOwnerName, setSharedOwnerName] = useState(
+    initial?.sharedOwnerName ?? "",
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const balanceNum = Number(balance);
-  const goalNum = goalAmount.trim() === '' ? undefined : Number(goalAmount);
-  const goalValid = goalNum === undefined || (Number.isFinite(goalNum) && goalNum >= 0);
+  const goalNum = goalAmount.trim() === "" ? undefined : Number(goalAmount);
+  const goalValid =
+    goalNum === undefined || (Number.isFinite(goalNum) && goalNum >= 0);
   const valid =
-    name.trim() !== '' &&
-    (editing || (balance.trim() !== '' && balanceNum >= 0)) &&
+    name.trim() !== "" &&
+    (editing || (balance.trim() !== "" && balanceNum >= 0)) &&
     goalValid &&
-    (!shared || sharedOwnerName.trim() !== '');
+    (!shared || sharedOwnerName.trim() !== "");
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -710,11 +913,11 @@ function PocketForm({
           goalAmount: removeGoal ? undefined : goalNum,
           removeGoal,
           shared,
-          sharedOwnerName: shared ? sharedOwnerName.trim() : ''
+          sharedOwnerName: shared ? sharedOwnerName.trim() : "",
         };
         pocket = await api.patch<Pocket>(
-          '/api/v1/savings/' + accountId + '/pockets/' + initial.id,
-          body
+          "/api/v1/savings/" + accountId + "/pockets/" + initial.id,
+          body,
         );
       } else {
         const body: PocketRequest = {
@@ -722,36 +925,63 @@ function PocketForm({
           balance: balanceNum,
           goalAmount: goalNum,
           shared,
-          sharedOwnerName: shared ? sharedOwnerName.trim() : ''
+          sharedOwnerName: shared ? sharedOwnerName.trim() : "",
         };
-        pocket = await api.post<Pocket>('/api/v1/savings/' + accountId + '/pockets', body);
+        pocket = await api.post<Pocket>(
+          "/api/v1/savings/" + accountId + "/pockets",
+          body,
+        );
       }
       onSaved(pocket);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos guardar el bolsillo.'));
+      setError(errorMessage(err, "No pudimos guardar el bolsillo."));
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="card"
-          style={{ display: 'grid', gap: 12, background: 'var(--paper)' }}>
-      <Field label="Nombre" type="text" value={name} onChange={setName}
-             placeholder="Vacaciones" />
+    <form
+      onSubmit={onSubmit}
+      className="card"
+      style={{ display: "grid", gap: 12, background: "var(--paper)" }}
+    >
+      <Field
+        label="Nombre"
+        type="text"
+        value={name}
+        onChange={setName}
+        placeholder="Vacaciones"
+      />
 
       {editing ? (
         <ReadOnly label="Saldo" value={money(initial.balance)} />
       ) : (
-        <Field label="Saldo" type="number" value={balance} onChange={setBalance}
-               placeholder="200000" hint="No puede ser negativo." />
+        <Field
+          label="Saldo"
+          type="number"
+          value={balance}
+          onChange={setBalance}
+          placeholder="200000"
+          hint="No puede ser negativo."
+        />
       )}
 
       {editing && hadGoal && (
-        <Toggle label="Quitar la meta" checked={removeGoal} onChange={setRemoveGoal} />
+        <Toggle
+          label="Quitar la meta"
+          checked={removeGoal}
+          onChange={setRemoveGoal}
+        />
       )}
       {!removeGoal && (
-        <Field label="Meta (opcional)" type="number" value={goalAmount} onChange={setGoalAmount}
-               placeholder="1000000" hint="Déjala vacía si el bolsillo no tiene meta." />
+        <Field
+          label="Meta (opcional)"
+          type="number"
+          value={goalAmount}
+          onChange={setGoalAmount}
+          placeholder="1000000"
+          hint="Déjala vacía si el bolsillo no tiene meta."
+        />
       )}
 
       <Toggle
@@ -759,22 +989,37 @@ function PocketForm({
         checked={shared}
         onChange={(v) => {
           setShared(v);
-          if (!v) setSharedOwnerName('');
+          if (!v) setSharedOwnerName("");
         }}
       />
       {shared && (
-        <Field label="Dueño real" type="text" value={sharedOwnerName} onChange={setSharedOwnerName}
-               placeholder="Papá" hint="Nombre de quien es realmente el dinero." />
+        <Field
+          label="Dueño real"
+          type="text"
+          value={sharedOwnerName}
+          onChange={setSharedOwnerName}
+          placeholder="Papá"
+          hint="Nombre de quien es realmente el dinero."
+        />
       )}
 
       {error && <InlineAlert message={error} />}
 
-      <button className="btn" type="submit" disabled={busy || !valid}
-              style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
-        {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar bolsillo'}
+      <button
+        className="btn"
+        type="submit"
+        disabled={busy || !valid}
+        style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}
+      >
+        {busy ? "Guardando…" : editing ? "Guardar cambios" : "Guardar bolsillo"}
       </button>
-      <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
-              style={{ borderColor: 'var(--line)' }}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={onCancel}
+        disabled={busy}
+        style={{ borderColor: "var(--line)" }}
+      >
         Cancelar
       </button>
     </form>
@@ -783,21 +1028,39 @@ function PocketForm({
 
 /** Linea de contexto del desglose de una cuenta: rotulo a la izquierda, monto a
  *  la derecha. `muted` atenua las cifras que no son propias (de terceros). */
-function InfoRow({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
+function InfoRow({
+  label,
+  value,
+  muted,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                  opacity: muted ? 0.55 : 1 }}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "baseline",
+        opacity: muted ? 0.55 : 1,
+      }}
+    >
       <span className="eyebrow">{label}</span>
-      <span className="amount" style={{ fontSize: 14 }}>{value}</span>
+      <span className="amount" style={{ fontSize: 14 }}>
+        {value}
+      </span>
     </div>
   );
 }
 
 function ReadOnly({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
+    <div style={{ display: "grid", gap: 6 }}>
       <span className="eyebrow">{label}</span>
-      <p className="amount" style={{ fontSize: 15, fontWeight: 600 }}>{value}</p>
+      <p className="amount" style={{ fontSize: 15, fontWeight: 600 }}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -805,19 +1068,26 @@ function ReadOnly({ label, value }: { label: string; value: string }) {
 function Toggle({
   label,
   checked,
-  onChange
+  onChange,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        cursor: "pointer",
+      }}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        style={{ width: 18, height: 18, accentColor: 'var(--ink)' }}
+        style={{ width: 18, height: 18, accentColor: "var(--ink)" }}
       />
       <span style={{ fontSize: 14 }}>{label}</span>
     </label>
@@ -827,32 +1097,44 @@ function Toggle({
 /** Chevron que rota 180° al abrir: comunica de un vistazo abierto/cerrado. */
 function Chevron({ open }: { open: boolean }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-         strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden
-         style={{ transition: 'transform .2s ease', transform: open ? 'rotate(180deg)' : 'none' }}>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      style={{
+        transition: "transform .2s ease",
+        transform: open ? "rotate(180deg)" : "none",
+      }}
+    >
       <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
 
 const smallBtn = {
-  width: 'auto',
-  padding: '6px 12px',
+  width: "auto",
+  padding: "6px 12px",
   fontSize: 13,
-  borderColor: 'var(--line)'
+  borderColor: "var(--line)",
 } as const;
 
 /** Botón en estado activo: relleno --ink, texto claro. La acción abierta. */
 const activeBtn = {
   ...smallBtn,
-  background: 'var(--ink)',
-  color: 'var(--paper)',
-  borderColor: 'var(--ink)'
+  background: "var(--ink)",
+  color: "var(--paper)",
+  borderColor: "var(--ink)",
 } as const;
 
 /** Botón atenuado: recede mientras hay otra acción abierta. */
 const dimBtn = {
   ...smallBtn,
-  color: 'var(--muted)',
-  opacity: 0.55
+  color: "var(--muted)",
+  opacity: 0.55,
 } as const;
