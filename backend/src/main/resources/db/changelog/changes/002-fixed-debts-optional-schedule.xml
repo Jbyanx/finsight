@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      Deudas informales: monthly_payment y payment_due_day pasan a ser
+      opcionales. Cubre "le debo $200.000 a mi tío" sin cuota ni fecha fija,
+      no solo el crédito bancario con calendario. Ver issue #76.
+
+      Esto documenta en el changelog lo que ya se aplicó a mano en Neon y en
+      el Docker local (ALTER TABLE directo), para que cualquier ambiente
+      nuevo — o un reset desde cero — termine en el mismo estado sin
+      necesidad de repetir el paso manual.
+
+      DROP NOT NULL es idempotente en PostgreSQL: si la columna ya admite
+      null, correrlo de nuevo no falla, simplemente no hace nada. Por eso
+      este changeset es seguro tanto en los ambientes ya parchados a mano
+      como en uno completamente nuevo.
+    -->
+    <changeSet id="002-01-fixed-debts-optional-schedule" author="jbyanx">
+        <sql>
+            alter table fixed_debts alter column monthly_payment drop not null;
+            alter table fixed_debts alter column payment_due_day drop not null;
+        </sql>
+        <rollback>
+            <!-- Ojo: este rollback falla si ya existen deudas informales con
+                 monthly_payment o payment_due_day en null — Postgres no puede
+                 poner NOT NULL sobre filas que ya violan esa regla. Es un
+                 rollback honesto, no uno que finja que siempre es reversible. -->
+            <sql>
+                alter table fixed_debts alter column monthly_payment set not null;
+                alter table fixed_debts alter column payment_due_day set not null;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

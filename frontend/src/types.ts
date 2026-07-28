@@ -5,7 +5,7 @@ export interface User {
   email: string;
   name: string;
   pictureUrl: string | null;
-  provider: 'local' | 'google';
+  provider: "local" | "google";
 }
 
 export interface AuthResponse {
@@ -18,7 +18,7 @@ export interface AuthResponse {
 
 /* ── Tarjetas ── */
 
-export type UtilizationStatus = 'SAFE' | 'YELLOW' | 'RED';
+export type UtilizationStatus = "SAFE" | "YELLOW" | "RED";
 
 export interface CreditCard {
   id: string;
@@ -71,8 +71,8 @@ export interface Cash {
 
 /* ── Transacciones ── */
 
-export type OriginType = 'CREDIT_CARD' | 'SAVINGS' | 'CASH';
-export type TransactionStatus = 'PENDING' | 'COMPLETED';
+export type OriginType = "CREDIT_CARD" | "SAVINGS" | "CASH";
+export type TransactionStatus = "PENDING" | "COMPLETED";
 
 export interface Transaction {
   id: string;
@@ -97,9 +97,14 @@ export interface Transaction {
 
 /* ── Ingresos ── */
 
-export type IncomeType = 'FIXED' | 'VARIABLE';
-export type IncomeFrequency = 'PER_SHIFT' | 'WEEKLY' | 'MONTHLY';
-export type DestinationType = 'CASH' | 'SAVINGS' | 'POCKET';
+export type IncomeType = "FIXED" | "VARIABLE";
+export type IncomeFrequency =
+  | "PER_SHIFT"
+  | "WEEKLY"
+  | "BIWEEKLY"
+  | "MONTHLY"
+  | "ONE_TIME";
+export type DestinationType = "CASH" | "SAVINGS" | "POCKET";
 
 export interface IncomeSource {
   id: string;
@@ -134,10 +139,10 @@ export interface OperationalExpense {
 
 /* ── Facturas ── */
 
-export type InvoiceFrequency = 'MONTHLY' | 'BIMONTHLY' | 'ANNUAL';
-export type PaymentMethod = 'CREDIT_CARD' | 'CASH' | 'TRANSFER';
-export type PaymentStatus = 'PENDING' | 'PAID' | 'OVERDUE';
-export type VoucherType = 'IMAGE' | 'PDF';
+export type InvoiceFrequency = "MONTHLY" | "BIMONTHLY" | "ANNUAL";
+export type PaymentMethod = "CREDIT_CARD" | "CASH" | "TRANSFER";
+export type PaymentStatus = "PENDING" | "PAID" | "OVERDUE";
+export type VoucherType = "IMAGE" | "PDF";
 
 export interface Invoice {
   id: string;
@@ -236,7 +241,7 @@ export interface Page<T> {
   content: T[];
   totalElements: number;
   totalPages: number;
-  number: number;   // página actual (0-based)
+  number: number; // página actual (0-based)
   size: number;
   first: boolean;
   last: boolean;

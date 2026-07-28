@@ -99,7 +99,7 @@ public class FinancialServiceImpl implements FinancialService {
         BigDecimal estimatedExpenses = operationalExpenseRepository
                 .findAllByUserIdAndActiveTrue(userId).stream()
                 .map(e -> normalizeExpenseToMonthly(
-                        e.getEstimatedAmount(), e.getFrequency()))
+                        e.getEstimatedAmount(), e.getFrequency(), e.getOccurrencesPerMonth()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // --- Facturas próximas (próximos 7 días) ---
@@ -148,25 +148,35 @@ public class FinancialServiceImpl implements FinancialService {
 
     private BigDecimal normalizeToMonthly(IncomeSource source) {
         if (source.getEstimatedAmount() == null) return BigDecimal.ZERO;
+        // Un ingreso de una sola vez no es un patrón mensual — contarlo infla
+        // artificialmente el promedio, como si se repitiera cada mes.
+        if (source.getFrequency() == IncomeSource.IncomeFrequency.ONE_TIME) return BigDecimal.ZERO;
         if (source.getOccurrencesPerMonth() != null) {
             return source.getEstimatedAmount()
                     .multiply(BigDecimal.valueOf(source.getOccurrencesPerMonth()));
         }
-        // fallback si no especifica occurrences
         return switch (source.getFrequency()) {
             case PER_SHIFT -> source.getEstimatedAmount().multiply(BigDecimal.valueOf(12));
             case WEEKLY -> source.getEstimatedAmount().multiply(BigDecimal.valueOf(4));
+            case BIWEEKLY -> source.getEstimatedAmount().multiply(BigDecimal.valueOf(2));
             case MONTHLY -> source.getEstimatedAmount();
+            case ONE_TIME -> BigDecimal.ZERO; // ya cubierto arriba; el switch exige exhaustividad
             case null -> BigDecimal.ZERO;
         };
     }
 
-    private BigDecimal normalizeExpenseToMonthly(BigDecimal amount,
-                                                 IncomeFrequency frequency) {
+    private BigDecimal normalizeExpenseToMonthly(BigDecimal amount, IncomeSource.IncomeFrequency frequency,
+                                                 Integer occurrencesPerMonth) {
+        if (frequency == IncomeSource.IncomeFrequency.ONE_TIME) return BigDecimal.ZERO;
+        if (occurrencesPerMonth != null) {
+            return amount.multiply(BigDecimal.valueOf(occurrencesPerMonth));
+        }
         return switch (frequency) {
             case PER_SHIFT -> amount.multiply(BigDecimal.valueOf(12));
             case WEEKLY -> amount.multiply(BigDecimal.valueOf(4));
+            case BIWEEKLY -> amount.multiply(BigDecimal.valueOf(2));
             case MONTHLY -> amount;
+            case ONE_TIME -> BigDecimal.ZERO;
         };
     }
 }

@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.domain.card.controller;
 
+import dev.jbyanx.finsight.domain.card.dto.CardPaymentRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardPatchRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardRequest;
 import dev.jbyanx.finsight.domain.card.dto.CreditCardResponse;
@@ -26,6 +27,15 @@ public class CreditCardController {
             @RequestBody @Valid CreditCardRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(creditCardService.create(principal.getId(), request));
+    }
+
+    @PostMapping("/{cardId}/payments")
+    public ResponseEntity<CreditCardResponse> applyPayment(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable String cardId,
+            @RequestBody @Valid CardPaymentRequest request) {
+        return ResponseEntity.ok(
+                creditCardService.applyPayment(principal.getId(), cardId, request));
     }
 
     @PatchMapping("/{cardId}")

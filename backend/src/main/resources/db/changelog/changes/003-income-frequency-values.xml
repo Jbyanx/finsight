@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+    <!--
+      IncomeFrequency gana BIWEEKLY (quincenal) y ONE_TIME (pago único),
+      además de renombrar en el frontend PER_SHIFT a "por trabajo". Ver #93.
+
+      A diferencia del changeset 002 (DROP NOT NULL, idempotente), un
+      DROP CONSTRAINT sí falla si el constraint no existe — pero acá nadie
+      lo tocó a mano todavía, así que corre limpio una sola vez, como
+      cualquier changeset normal de Liquibase.
+    -->
+    <changeSet id="003-01-income-frequency-values" author="jbyanx">
+        <sql>
+            alter table income_sources drop constraint income_sources_frequency_check;
+            alter table income_sources add constraint income_sources_frequency_check
+                check (frequency in ('PER_SHIFT','WEEKLY','BIWEEKLY','MONTHLY','ONE_TIME'));
+
+            alter table operational_expenses drop constraint operational_expenses_frequency_check;
+            alter table operational_expenses add constraint operational_expenses_frequency_check
+                check (frequency in ('PER_SHIFT','WEEKLY','BIWEEKLY','MONTHLY','ONE_TIME'));
+        </sql>
+        <rollback>
+            <!-- Falla si ya hay filas con BIWEEKLY u ONE_TIME — mismo caso honesto
+                 que el rollback del changeset 002: relajar una regla es
+                 fácil de deshacer, volver a apretarla no siempre lo es. -->
+            <sql>
+                alter table income_sources drop constraint income_sources_frequency_check;
+                alter table income_sources add constraint income_sources_frequency_check
+                check (frequency in ('PER_SHIFT','WEEKLY','MONTHLY'));
+
+                alter table operational_expenses drop constraint operational_expenses_frequency_check;
+                alter table operational_expenses add constraint operational_expenses_frequency_check
+                check (frequency in ('PER_SHIFT','WEEKLY','MONTHLY'));
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

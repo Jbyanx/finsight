@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import { api } from '../lib/api';
-import { Field } from './Login';
-import { UtilizationBar } from '../components/UtilizationBar';
-import { InlineAlert } from '../components/InlineAlert';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import { errorMessage } from '../lib/errorMessage';
-import { money } from '../lib/money';
-import { recommendedPayment } from '../lib/cardHealth';
-import { formatNextOccurrence } from '../lib/dateOccurrence';
-import type { CreditCard } from '../types';
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { api } from "../lib/api";
+import { Field } from "./Login";
+import { UtilizationBar } from "../components/UtilizationBar";
+import { InlineAlert } from "../components/InlineAlert";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { errorMessage } from "../lib/errorMessage";
+import { money } from "../lib/money";
+import { recommendedPayment } from "../lib/cardHealth";
+import { formatNextOccurrence } from "../lib/dateOccurrence";
+import type { CreditCard } from "../types";
+import { MoneyField } from "../components/MoneyField";
+import { Select } from "../components/Select";
+import { BlockingWarning } from "../components/BlockingWarning";
+import type { SavingsAccount, Pocket, Cash } from "../types";
 
 /** Alta: espeja CreditCardRequest. institution solo se define al crear. */
 interface CreditCardRequest {
@@ -35,19 +39,32 @@ export default function Cards() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CreditCard | null>(null);
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<SavingsAccount[]>([]);
+  const [cash, setCash] = useState<Cash | null>(null);
 
   async function load() {
     setError(null);
     try {
-      const data = await api.get<CreditCard[]>('/api/v1/cards');
+      const data = await api.get<CreditCard[]>("/api/v1/cards");
       setCards(data);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos cargar tus tarjetas.'));
+      setError(errorMessage(err, "No pudimos cargar tus tarjetas."));
     }
+  }
+
+  async function refreshOrigins() {
+    const [a, k] = await Promise.all([
+      api.get<SavingsAccount[]>("/api/v1/savings").catch(() => []),
+      api.get<Cash>("/api/v1/cash").catch(() => null),
+    ]);
+    setAccounts(a);
+    setCash(k);
   }
 
   useEffect(() => {
     load();
+    refreshOrigins();
   }, []);
 
   function upsert(card: CreditCard) {
@@ -66,10 +83,10 @@ export default function Cards() {
     setError(null);
     setDeletingId(card.id);
     try {
-      await api.del('/api/v1/cards/' + card.id);
+      await api.del("/api/v1/cards/" + card.id);
       setCards((prev) => (prev ? prev.filter((c) => c.id !== card.id) : prev));
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos eliminar la tarjeta.'));
+      setError(errorMessage(err, "No pudimos eliminar la tarjeta."));
     } finally {
       setDeletingId(null);
     }
@@ -86,20 +103,31 @@ export default function Cards() {
   if (!cards) {
     return (
       <main>
-        <p style={{ color: 'var(--muted)' }}>Cargando…</p>
+        <p style={{ color: "var(--muted)" }}>Cargando…</p>
       </main>
     );
   }
 
   return (
     <main>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <p className="eyebrow">Tus tarjetas</p>
         {!adding && (
           <button
             className="btn btn-ghost"
             onClick={() => setAdding(true)}
-            style={{ width: 'auto', padding: '6px 10px', fontSize: 13, borderColor: 'var(--line)' }}
+            style={{
+              width: "auto",
+              padding: "6px 10px",
+              fontSize: 13,
+              borderColor: "var(--line)",
+            }}
           >
             Agregar tarjeta
           </button>
@@ -125,15 +153,20 @@ export default function Cards() {
       {!adding && cards.length === 0 && (
         <div
           className="card"
-          style={{ marginTop: 22, color: 'var(--muted)', fontSize: 14, lineHeight: 1.5 }}
+          style={{
+            marginTop: 22,
+            color: "var(--muted)",
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
         >
-          Todavía no tienes tarjetas. Agrega la primera para ver tu utilización y
-          saber con qué pagar hoy.
+          Todavía no tienes tarjetas. Agrega la primera para ver tu utilización
+          y saber con qué pagar hoy.
         </div>
       )}
 
       {cards.length > 0 && (
-        <section style={{ marginTop: 22, display: 'grid', gap: 12 }}>
+        <section style={{ marginTop: 22, display: "grid", gap: 12 }}>
           {cards.map((c) => {
             const editing = editingId === c.id;
             const busy = deletingId === c.id;
@@ -154,34 +187,99 @@ export default function Cards() {
                       available={c.availableAmount}
                       utilization={c.utilizationPercentage}
                     />
-                    {c.utilizationStatus !== 'SAFE' && (
-                      <p style={{ marginTop: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
-                        Paga {money(recommendedPayment(c))} antes del corte ({formatNextOccurrence(c.cutOffDay)})
-                        para no facturar por encima del 30% de tu cupo.
+                    {c.utilizationStatus === "RED" && (
+                      <p
+                        style={{
+                          marginTop: 8,
+                          fontSize: 13,
+                          color: "var(--danger)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Paga {money(recommendedPayment(c))} antes del corte (
+                        {formatNextOccurrence(c.cutOffDay)}) para no facturar
+                        por encima del 30% de tu cupo.
+                      </p>
+                    )}
+                    {c.utilizationStatus === "YELLOW" && (
+                      <p
+                        style={{
+                          marginTop: 8,
+                          fontSize: 13,
+                          color: "var(--warn)",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Te estás acercando al 30% de tu cupo — el corte es el{" "}
+                        {formatNextOccurrence(c.cutOffDay)}.
                       </p>
                     )}
                   </>
                 )}
                 {/* Editar abierto → botón ACTIVO (relleno --ink) y Eliminar
                     atenuado, mismo patrón que Savings. El activo cierra al tocar. */}
-                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginTop: 14,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setPayingId(payingId === c.id ? null : c.id)}
+                    disabled={busy || editing}
+                    style={
+                      payingId === c.id
+                        ? activeBtn
+                        : editing
+                          ? dimBtn
+                          : smallBtn
+                    }
+                  >
+                    Abonar
+                  </button>
                   <button
                     className="btn btn-ghost"
                     onClick={() => setEditingId(editing ? null : c.id)}
-                    disabled={busy}
-                    style={editing ? activeBtn : smallBtn}
+                    disabled={busy || payingId === c.id}
+                    style={
+                      editing
+                        ? activeBtn
+                        : payingId === c.id
+                          ? dimBtn
+                          : smallBtn
+                    }
                   >
                     Editar
                   </button>
                   <button
                     className="btn btn-ghost"
                     onClick={() => setPendingDelete(c)}
-                    disabled={busy}
-                    style={editing ? dimBtn : { ...smallBtn, color: 'var(--danger)' }}
+                    disabled={busy || payingId === c.id}
+                    style={
+                      editing || payingId === c.id
+                        ? dimBtn
+                        : { ...smallBtn, color: "var(--danger)" }
+                    }
                   >
-                    {busy ? 'Eliminando…' : 'Eliminar'}
+                    {busy ? "Eliminando…" : "Eliminar"}
                   </button>
                 </div>
+                {payingId === c.id && !editing && (
+                  <CardPaymentForm
+                    card={c}
+                    accounts={accounts}
+                    cash={cash}
+                    onCancel={() => setPayingId(null)}
+                    onDone={(fresh) => {
+                      upsert(fresh);
+                      setPayingId(null);
+                      refreshOrigins();
+                    }}
+                  />
+                )}
                 {editing && (
                   <CardForm
                     embedded
@@ -202,7 +300,11 @@ export default function Cards() {
       {pendingDelete && (
         <ConfirmDialog
           title="Eliminar tarjeta"
-          message={'¿Eliminar "' + (pendingDelete.nickname || pendingDelete.institution) + '"?'}
+          message={
+            '¿Eliminar "' +
+            (pendingDelete.nickname || pendingDelete.institution) +
+            '"?'
+          }
           confirmLabel="Eliminar tarjeta"
           tone="danger"
           onConfirm={() => confirmDelete(pendingDelete)}
@@ -210,6 +312,218 @@ export default function Cards() {
         />
       )}
     </main>
+  );
+}
+
+type PaymentOrigin = "NONE" | "CASH" | "SAVINGS";
+interface CardPaymentBody {
+  amount: number;
+  originType?: "CASH" | "SAVINGS";
+  savingsAccountId?: string;
+  pocketId?: string;
+}
+
+const ORIGIN_OPTION_LABELS: Record<PaymentOrigin, string> = {
+  NONE: "Nadie (solo registrar)",
+  CASH: "Efectivo",
+  SAVINGS: "Cuenta",
+};
+
+/**
+ * Abonar a la tarjeta — calcado de DebtPaymentForm. Tarjeta nunca es un
+ * origen válido: el backend lo rechaza porque pagar una tarjeta con otra
+ * mueve la deuda de lugar, no la salda.
+ */
+function CardPaymentForm({
+  card,
+  accounts,
+  cash,
+  onCancel,
+  onDone,
+}: {
+  card: CreditCard;
+  accounts: SavingsAccount[];
+  cash: Cash | null;
+  onCancel: () => void;
+  onDone: (card: CreditCard) => void;
+}) {
+  const [amount, setAmount] = useState("");
+  const [origin, setOrigin] = useState<PaymentOrigin>("NONE");
+  const [savingsAccountId, setSavingsAccountId] = useState(
+    accounts[0]?.id ?? "",
+  );
+  const [pocketId, setPocketId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const selectedAccount = accounts.find((a) => a.id === savingsAccountId);
+  const pockets: Pocket[] = selectedAccount?.pockets ?? [];
+
+  const amountNum = Number(amount);
+  const amountEntered = amount.trim() !== "" && amountNum > 0;
+  const exceedsCard = amountEntered && amountNum > card.usedAmount;
+
+  let originWarning: string | null = null;
+  if (exceedsCard) {
+    originWarning = `Ese monto supera lo que debes (${money(card.usedAmount)}).`;
+  } else if (origin === "CASH") {
+    if (!cash || cash.balance <= 0) {
+      originWarning = "No tienes efectivo registrado.";
+    } else if (amountEntered && amountNum > cash.balance) {
+      originWarning = `Ese monto supera tu efectivo disponible (${money(cash.balance)}).`;
+    }
+  } else if (origin === "SAVINGS") {
+    if (accounts.length === 0) {
+      originWarning = "No tienes cuentas de ahorro registradas.";
+    } else if (
+      selectedAccount &&
+      amountEntered &&
+      amountNum > selectedAccount.availableBalance
+    ) {
+      originWarning = `Ese monto supera el disponible de la cuenta (${money(selectedAccount.availableBalance)}).`;
+    }
+  }
+
+  const valid =
+    amountEntered &&
+    originWarning === null &&
+    (origin !== "SAVINGS" || savingsAccountId !== "");
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!valid) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const body: CardPaymentBody = {
+        amount: amountNum,
+        originType: origin === "NONE" ? undefined : origin,
+        savingsAccountId: origin === "SAVINGS" ? savingsAccountId : undefined,
+        pocketId: origin === "SAVINGS" && pocketId ? pocketId : undefined,
+      };
+      const fresh = await api.post<CreditCard>(
+        "/api/v1/cards/" + card.id + "/payments",
+        body,
+      );
+      onDone(fresh);
+    } catch (err) {
+      setError(errorMessage(err, "No pudimos registrar el pago."));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={onSubmit}
+      style={{
+        marginTop: 10,
+        display: "grid",
+        gap: 10,
+        border: "1px solid var(--line)",
+        borderRadius: 10,
+        padding: 12,
+      }}
+    >
+      <p style={{ fontWeight: 600, fontSize: 14 }}>¿Cuánto quieres abonar?</p>
+      <MoneyField
+        label="Monto del abono"
+        value={amount}
+        onChange={setAmount}
+        placeholder={String(card.usedAmount)}
+        hint={"Debes " + money(card.usedAmount) + "."}
+      />
+
+      <div style={{ display: "grid", gap: 6 }}>
+        <span className="eyebrow">¿De dónde sale?</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["NONE", "CASH", "SAVINGS"] as const).map((o) => (
+            <button
+              key={o}
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setOrigin(o)}
+              style={{ flex: 1, ...(origin === o ? activeBtn : smallBtn) }}
+            >
+              {ORIGIN_OPTION_LABELS[o]}
+            </button>
+          ))}
+        </div>
+        {origin === "NONE" && (
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
+            Pagó alguien más fuera de la app: solo se registra en la tarjeta.
+          </span>
+        )}
+      </div>
+
+      {origin === "CASH" && cash && cash.balance > 0 && (
+        <p style={{ fontSize: 13, color: "var(--muted)" }}>
+          Disponible en efectivo:{" "}
+          <strong style={{ color: "var(--ink)" }}>{money(cash.balance)}</strong>
+        </p>
+      )}
+
+      {origin === "SAVINGS" && accounts.length > 0 && (
+        <>
+          <Select
+            label="Cuenta"
+            value={savingsAccountId}
+            onChange={(v) => {
+              setSavingsAccountId(v);
+              setPocketId("");
+            }}
+          >
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.nickname || a.institution} — {money(a.availableBalance)}
+              </option>
+            ))}
+          </Select>
+
+          {pockets.length > 0 && (
+            <Select
+              label="Bolsillo (opcional)"
+              value={pocketId}
+              onChange={setPocketId}
+            >
+              <option value="">Ninguno</option>
+              {pockets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {money(p.balance)}
+                </option>
+              ))}
+            </Select>
+          )}
+        </>
+      )}
+
+      {originWarning && <BlockingWarning message={originWarning} />}
+      {error && <InlineAlert message={error} />}
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          className="btn"
+          type="submit"
+          disabled={busy || !valid}
+          style={{
+            width: "auto",
+            padding: "8px 16px",
+            fontSize: 13,
+            opacity: busy || !valid ? 0.5 : 1,
+          }}
+        >
+          {busy ? "Procesando…" : "Registrar pago"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onCancel}
+          disabled={busy}
+          style={smallBtn}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -225,7 +539,7 @@ function CardForm({
   initial,
   embedded,
   onCancel,
-  onSaved
+  onSaved,
 }: {
   initial?: CreditCard;
   embedded?: boolean;
@@ -234,14 +548,16 @@ function CardForm({
 }) {
   const editing = initial != null;
 
-  const [institution, setInstitution] = useState(initial?.institution ?? '');
-  const [nickname, setNickname] = useState(initial?.nickname ?? '');
+  const [institution, setInstitution] = useState(initial?.institution ?? "");
+  const [nickname, setNickname] = useState(initial?.nickname ?? "");
   const [creditLimit, setCreditLimit] = useState(
-    initial ? String(initial.creditLimit) : ''
+    initial ? String(initial.creditLimit) : "",
   );
-  const [cutOffDay, setCutOffDay] = useState(initial ? String(initial.cutOffDay) : '');
+  const [cutOffDay, setCutOffDay] = useState(
+    initial ? String(initial.cutOffDay) : "",
+  );
   const [paymentDueDay, setPaymentDueDay] = useState(
-    initial ? String(initial.paymentDueDay) : ''
+    initial ? String(initial.paymentDueDay) : "",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -252,8 +568,8 @@ function CardForm({
 
   const validDay = (n: number) => Number.isInteger(n) && n >= 1 && n <= 31;
   const valid =
-    (editing || institution.trim() !== '') &&
-    creditLimit.trim() !== '' &&
+    (editing || institution.trim() !== "") &&
+    creditLimit.trim() !== "" &&
     limitNum >= 0.01 &&
     validDay(cutNum) &&
     validDay(dueNum);
@@ -270,22 +586,22 @@ function CardForm({
           nickname: nickname.trim(),
           creditLimit: limitNum,
           cutOffDay: cutNum,
-          paymentDueDay: dueNum
+          paymentDueDay: dueNum,
         };
-        card = await api.patch<CreditCard>('/api/v1/cards/' + initial.id, body);
+        card = await api.patch<CreditCard>("/api/v1/cards/" + initial.id, body);
       } else {
         const body: CreditCardRequest = {
           institution: institution.trim(),
           nickname: nickname.trim(),
           creditLimit: limitNum,
           cutOffDay: cutNum,
-          paymentDueDay: dueNum
+          paymentDueDay: dueNum,
         };
-        card = await api.post<CreditCard>('/api/v1/cards', body);
+        card = await api.post<CreditCard>("/api/v1/cards", body);
       }
       onSaved(card);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos guardar la tarjeta.'));
+      setError(errorMessage(err, "No pudimos guardar la tarjeta."));
       setBusy(false);
     }
   }
@@ -293,47 +609,90 @@ function CardForm({
   return (
     <form
       onSubmit={onSubmit}
-      className={embedded ? undefined : 'card'}
+      className={embedded ? undefined : "card"}
       style={
         embedded
-          ? { marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)',
-              display: 'grid', gap: 12 }
-          : { marginTop: 22, display: 'grid', gap: 12 }
+          ? {
+              marginTop: 14,
+              paddingTop: 14,
+              borderTop: "1px solid var(--line)",
+              display: "grid",
+              gap: 12,
+            }
+          : { marginTop: 22, display: "grid", gap: 12 }
       }
     >
       {editing ? (
-        <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: "grid", gap: 6 }}>
           <span className="eyebrow">Institución</span>
           <p style={{ fontWeight: 600, fontSize: 15 }}>{institution}</p>
         </div>
       ) : (
         <>
-          <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
-            Esto es para tarjetas de <strong style={{ color: 'var(--ink)' }}>crédito</strong> —
-            con cupo, corte y utilización. Si es una tarjeta débito o cuenta bancaria,
-            regístrala en <strong style={{ color: 'var(--ink)' }}>Cuentas</strong>.
+          <p style={{ fontSize: 12, color: "var(--muted)", lineHeight: 1.4 }}>
+            Esto es para tarjetas de{" "}
+            <strong style={{ color: "var(--ink)" }}>crédito</strong> — con cupo,
+            corte y utilización. Si es una tarjeta débito o cuenta bancaria,
+            regístrala en{" "}
+            <strong style={{ color: "var(--ink)" }}>Cuentas</strong>.
           </p>
-          <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-                placeholder="Bancolombia" />
+          <Field
+            label="Institución"
+            type="text"
+            value={institution}
+            onChange={setInstitution}
+            placeholder="Bancolombia"
+          />
         </>
       )}
-      <Field label="Apodo (opcional)" type="text" value={nickname} onChange={setNickname}
-             placeholder="Mi tarjeta de viajes" />
-      <Field label="Cupo" type="number" value={creditLimit} onChange={setCreditLimit}
-             placeholder="2000000" hint="Debe ser mayor a 0." />
-      <Field label="Día de corte" type="number" value={cutOffDay} onChange={setCutOffDay}
-             placeholder="15" hint="Entre 1 y 31." />
-      <Field label="Día de pago" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
-             placeholder="5" hint="Entre 1 y 31." />
+      <Field
+        label="Apodo (opcional)"
+        type="text"
+        value={nickname}
+        onChange={setNickname}
+        placeholder="Mi tarjeta de viajes"
+      />
+      <MoneyField
+        label="Cupo"
+        value={creditLimit}
+        onChange={setCreditLimit}
+        placeholder="2000000"
+        hint="Debe ser mayor a 0."
+      />
+      <Field
+        label="Día de corte"
+        type="number"
+        value={cutOffDay}
+        onChange={setCutOffDay}
+        placeholder="15"
+        hint="Entre 1 y 31."
+      />
+      <Field
+        label="Día de pago"
+        type="number"
+        value={paymentDueDay}
+        onChange={setPaymentDueDay}
+        placeholder="5"
+        hint="Entre 1 y 31."
+      />
 
       {error && <InlineAlert message={error} />}
 
-      <button className="btn" type="submit" disabled={busy || !valid}
-              style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
-        {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar tarjeta'}
+      <button
+        className="btn"
+        type="submit"
+        disabled={busy || !valid}
+        style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}
+      >
+        {busy ? "Guardando…" : editing ? "Guardar cambios" : "Guardar tarjeta"}
       </button>
-      <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
-              style={{ borderColor: 'var(--line)' }}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={onCancel}
+        disabled={busy}
+        style={{ borderColor: "var(--line)" }}
+      >
         Cancelar
       </button>
     </form>
@@ -342,23 +701,23 @@ function CardForm({
 
 // Mismos estilos de botón que Savings, por coherencia entre pantallas.
 const smallBtn = {
-  width: 'auto',
-  padding: '6px 12px',
+  width: "auto",
+  padding: "6px 12px",
   fontSize: 13,
-  borderColor: 'var(--line)'
+  borderColor: "var(--line)",
 } as const;
 
 /** Botón en estado activo: relleno --ink, texto claro. La acción abierta. */
 const activeBtn = {
   ...smallBtn,
-  background: 'var(--ink)',
-  color: 'var(--paper)',
-  borderColor: 'var(--ink)'
+  background: "var(--ink)",
+  color: "var(--paper)",
+  borderColor: "var(--ink)",
 } as const;
 
 /** Botón atenuado: recede mientras hay otra acción abierta. */
 const dimBtn = {
   ...smallBtn,
-  color: 'var(--muted)',
-  opacity: 0.55
+  color: "var(--muted)",
+  opacity: 0.55,
 } as const;

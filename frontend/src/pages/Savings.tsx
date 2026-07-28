@@ -16,6 +16,10 @@ import type { SavingsAccount, Pocket } from '../types';
    muestra aparte y atenuado, nunca sumado como propio. Un bolsillo compartido
    lleva el rótulo "de <nombre>" y se ve apagado. Una meta de ahorro usa una
    barra SOBRIA propia: aquí el 100% es bueno, lo contrario de la utilización.
+
+   Cada bolsillo se dibuja con su propia tarjeta (borde + fondo) — sin eso,
+   dos o más bolsillos expandidos se funden visualmente en un solo bloque,
+   sin ninguna pista de dónde termina uno y empieza el siguiente.
    ============================================================ */
 
 /** POST cuenta: espeja SavingsAccountRequest. */
@@ -379,7 +383,13 @@ function PocketRow({
   const [op, setOp] = useState<'deposit' | 'withdraw' | null>(null);
 
   return (
-    <div style={{ opacity: isShared ? 0.55 : 1 }}>
+    <div style={{
+      opacity: isShared ? 0.55 : 1,
+      border: '1px solid var(--line)',
+      borderRadius: 10,
+      padding: 12,
+      background: 'var(--paper)'
+    }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div>
           <span style={{ fontWeight: 600, fontSize: 14 }}>{pocket.name}</span>
@@ -846,4 +856,3 @@ const dimBtn = {
   color: 'var(--muted)',
   opacity: 0.55
 } as const;
-
