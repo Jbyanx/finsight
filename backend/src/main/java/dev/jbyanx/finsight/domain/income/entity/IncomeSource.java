@@ -55,6 +55,6 @@ public class IncomeSource {
     }
 
     public enum IncomeFrequency {
-        PER_SHIFT, WEEKLY, MONTHLY
+        PER_SHIFT, WEEKLY, BIWEEKLY, MONTHLY, ONE_TIME
     }
 }
