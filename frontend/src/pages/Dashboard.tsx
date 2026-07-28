@@ -143,10 +143,15 @@ const health = healthOf(summary.overallUtilizationPercentage);
           <p className="amount" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 12 }}>
             Corte el {best.cutOffDay}
           </p>
-          {best.utilizationStatus !== 'SAFE' && (
+          {best.utilizationStatus === 'RED' && (
             <p style={{ marginTop: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
               Paga {money(recommendedPayment(best))} antes del corte ({formatNextOccurrence(best.cutOffDay)})
               para no facturar por encima del 30% de tu cupo.
+            </p>
+          )}
+          {best.utilizationStatus === 'YELLOW' && (
+            <p style={{ marginTop: 8, fontSize: 13, color: 'var(--warn)', fontWeight: 600 }}>
+              Te estás acercando al 30% de tu cupo — el corte es el {formatNextOccurrence(best.cutOffDay)}.
             </p>
           )}
           {summary.upcomingInvoices.length > 0 && (
@@ -192,10 +197,15 @@ const health = healthOf(summary.overallUtilizationPercentage);
                 available={c.availableAmount}
                 utilization={c.utilizationPercentage}
               />
-              {c.utilizationStatus !== 'SAFE' && (
+              {c.utilizationStatus === 'RED' && (
                 <p style={{ marginTop: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
                   Paga {money(recommendedPayment(c))} antes del corte ({formatNextOccurrence(c.cutOffDay)})
                   para no facturar por encima del 30% de tu cupo.
+                </p>
+              )}
+              {c.utilizationStatus === 'YELLOW' && (
+                <p style={{ marginTop: 8, fontSize: 13, color: 'var(--warn)', fontWeight: 600 }}>
+                  Te estás acercando al 30% de tu cupo — el corte es el {formatNextOccurrence(c.cutOffDay)}.
                 </p>
               )}
             </div>
