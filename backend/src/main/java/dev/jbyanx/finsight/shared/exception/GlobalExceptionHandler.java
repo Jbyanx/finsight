@@ -1,5 +1,6 @@
 package dev.jbyanx.finsight.shared.exception;
 
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
@@ -60,8 +61,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleMissingBody(
             HttpMessageNotReadableException ex, HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, "Bad Request",
-                "Request body is required", request);
+        String message = ex.getCause() instanceof InvalidFormatException
+                ? "Invalid value in request body: " + ex.getCause().getMessage()
+                : "Request body is required or malformed";
+        return build(HttpStatus.BAD_REQUEST, "Bad Request", message, request);
     }
 
     // --- Excepciones de Token ---
