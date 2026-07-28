@@ -19,6 +19,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(PaymentExceedsCardBalanceException.class)
+    public ResponseEntity<ErrorResponse> handlePaymentExceedsCardBalance(
+            PaymentExceedsCardBalanceException ex, HttpServletRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Payment Exceeds Card Balance", ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DebtAlreadyPaidOffException.class)
     public ResponseEntity<ErrorResponse> handleDebtPaidOff(
             DebtAlreadyPaidOffException ex, HttpServletRequest request) {
