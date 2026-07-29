@@ -1,18 +1,23 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import { api } from '../lib/api';
-import { Field } from './Login';
-import { Select } from '../components/Select';
-import { MoneyField } from '../components/MoneyField';
-import { BlockingWarning } from '../components/BlockingWarning';
-import { money } from '../lib/money';
-import { errorMessage } from '../lib/errorMessage';
-import { InlineAlert } from '../components/InlineAlert';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { api } from "../lib/api";
+import { Field } from "./Login";
+import { Select } from "../components/Select";
+import { MoneyField } from "../components/MoneyField";
+import { BlockingWarning } from "../components/BlockingWarning";
+import { money } from "../lib/money";
+import { errorMessage } from "../lib/errorMessage";
+import { InlineAlert } from "../components/InlineAlert";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type {
-  Transaction, CreditCard, SavingsAccount, Pocket, Cash,
-  Page, OriginType
-} from '../types';
+  Transaction,
+  CreditCard,
+  SavingsAccount,
+  Pocket,
+  Cash,
+  Page,
+  OriginType,
+} from "../types";
 
 /* ============================================================
    Movimientos — historial paginado de transacciones.
@@ -34,23 +39,32 @@ import type {
 const PAGE_SIZE = 10;
 
 const CATEGORIES = [
-  'Alimentación', 'Transporte', 'Salud', 'Educación',
-  'Entretenimiento', 'Ropa', 'Hogar', 'Tecnología',
-  'Gasolina', 'Compras', 'Servicios', 'Otro'
+  "Alimentación",
+  "Transporte",
+  "Salud",
+  "Educación",
+  "Entretenimiento",
+  "Ropa",
+  "Hogar",
+  "Tecnología",
+  "Gasolina",
+  "Compras",
+  "Servicios",
+  "Otro",
 ];
 
-type FilterType = 'ALL' | 'SHARED' | 'CARD';
+type FilterType = "ALL" | "SHARED" | "CARD";
 
 const FILTER_LABELS: Record<FilterType, string> = {
-  ALL: 'Todos',
-  SHARED: 'Compartidos',
-  CARD: 'Por tarjeta'
+  ALL: "Todos",
+  SHARED: "Compartidos",
+  CARD: "Por tarjeta",
 };
 
 const ORIGIN_LABELS: Record<OriginType, string> = {
-  CREDIT_CARD: 'Tarjeta',
-  SAVINGS: 'Cuenta',
-  CASH: 'Efectivo'
+  CREDIT_CARD: "Tarjeta",
+  SAVINGS: "Cuenta",
+  CASH: "Efectivo",
 };
 
 /** POST transacción: espeja TransactionRequest. */
@@ -75,8 +89,8 @@ export default function Transactions() {
   const [cash, setCash] = useState<Cash | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
-  const [filter, setFilter] = useState<FilterType>('ALL');
-  const [selectedCardId, setSelectedCardId] = useState('');
+  const [filter, setFilter] = useState<FilterType>("ALL");
+  const [selectedCardId, setSelectedCardId] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Transaction | null>(null);
 
@@ -84,20 +98,22 @@ export default function Transactions() {
     setError(null);
     try {
       let url = `/api/v1/transactions?page=${pageNumber}&size=${PAGE_SIZE}`;
-      if (filter === 'SHARED') url = `/api/v1/transactions/shared?page=${pageNumber}&size=${PAGE_SIZE}`;
-      if (filter === 'CARD' && selectedCardId) url = `/api/v1/transactions/card/${selectedCardId}?page=${pageNumber}&size=${PAGE_SIZE}`;
+      if (filter === "SHARED")
+        url = `/api/v1/transactions/shared?page=${pageNumber}&size=${PAGE_SIZE}`;
+      if (filter === "CARD" && selectedCardId)
+        url = `/api/v1/transactions/card/${selectedCardId}?page=${pageNumber}&size=${PAGE_SIZE}`;
       const data = await api.get<Page<Transaction>>(url);
       setPage(data);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos cargar tus movimientos.'));
+      setError(errorMessage(err, "No pudimos cargar tus movimientos."));
     }
   }
 
   async function refreshOrigins() {
     const [c, a, k] = await Promise.all([
-      api.get<CreditCard[]>('/api/v1/cards').catch(() => []),
-      api.get<SavingsAccount[]>('/api/v1/savings').catch(() => []),
-      api.get<Cash>('/api/v1/cash').catch(() => null)
+      api.get<CreditCard[]>("/api/v1/cards").catch(() => []),
+      api.get<SavingsAccount[]>("/api/v1/savings").catch(() => []),
+      api.get<Cash>("/api/v1/cash").catch(() => null),
     ]);
     setCards(c);
     setAccounts(a);
@@ -130,14 +146,18 @@ export default function Transactions() {
     setDeletingId(tx.id);
     try {
       await api.del(`/api/v1/transactions/${tx.id}`);
-      setPage((prev) => prev
-        ? { ...prev, content: prev.content.filter((t) => t.id !== tx.id),
-            totalElements: prev.totalElements - 1 }
-        : prev
+      setPage((prev) =>
+        prev
+          ? {
+              ...prev,
+              content: prev.content.filter((t) => t.id !== tx.id),
+              totalElements: prev.totalElements - 1,
+            }
+          : prev,
       );
       refreshOrigins();
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos eliminar el movimiento.'));
+      setError(errorMessage(err, "No pudimos eliminar el movimiento."));
     } finally {
       setDeletingId(null);
     }
@@ -154,20 +174,31 @@ export default function Transactions() {
   if (!page) {
     return (
       <main>
-        <p style={{ color: 'var(--muted)' }}>Cargando…</p>
+        <p style={{ color: "var(--muted)" }}>Cargando…</p>
       </main>
     );
   }
 
   return (
     <main>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <p className="eyebrow">Tus movimientos</p>
         {!adding && (
           <button
             className="btn btn-ghost"
             onClick={() => setAdding(true)}
-            style={{ width: 'auto', padding: '6px 10px', fontSize: 13, borderColor: 'var(--line)' }}
+            style={{
+              width: "auto",
+              padding: "6px 10px",
+              fontSize: 13,
+              borderColor: "var(--line)",
+            }}
           >
             Registrar
           </button>
@@ -193,7 +224,9 @@ export default function Transactions() {
       {/* Filtros — ocultos mientras se crea, para no competir por atención
           con el formulario. */}
       {!adding && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 20, flexWrap: 'wrap' }}>
+        <div
+          style={{ display: "flex", gap: 8, marginTop: 20, flexWrap: "wrap" }}
+        >
           {(Object.keys(FILTER_LABELS) as FilterType[]).map((f) => (
             <button
               key={f}
@@ -207,32 +240,46 @@ export default function Transactions() {
         </div>
       )}
 
-      {!adding && filter === 'CARD' && (
-        cards.length > 0 ? (
+      {!adding &&
+        filter === "CARD" &&
+        (cards.length > 0 ? (
           <div style={{ marginTop: 14 }}>
-            <Select label="Tarjeta" value={selectedCardId} onChange={setSelectedCardId}>
+            <Select
+              label="Tarjeta"
+              value={selectedCardId}
+              onChange={setSelectedCardId}
+            >
               {cards.map((c) => (
-                <option key={c.id} value={c.id}>{c.nickname || c.institution}</option>
+                <option key={c.id} value={c.id}>
+                  {c.nickname || c.institution}
+                </option>
               ))}
             </Select>
           </div>
         ) : (
-          <p style={{ marginTop: 12, color: 'var(--muted)', fontSize: 13 }}>
+          <p style={{ marginTop: 12, color: "var(--muted)", fontSize: 13 }}>
             Todavía no tienes tarjetas registradas.
           </p>
-        )
-      )}
+        ))}
 
       {!adding && page.content.length === 0 && (
-        <div className="card" style={{ marginTop: 22, color: 'var(--muted)', fontSize: 14, lineHeight: 1.5 }}>
-          {filter === 'ALL'
-            ? 'Todavía no tienes movimientos. Registra el primero para empezar a ver tu historial.'
-            : 'Sin movimientos con este filtro.'}
+        <div
+          className="card"
+          style={{
+            marginTop: 22,
+            color: "var(--muted)",
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
+          {filter === "ALL"
+            ? "Todavía no tienes movimientos. Registra el primero para empezar a ver tu historial."
+            : "Sin movimientos con este filtro."}
         </div>
       )}
 
       {page.content.length > 0 && (
-        <section style={{ marginTop: 22, display: 'grid', gap: 12 }}>
+        <section style={{ marginTop: 22, display: "grid", gap: 12 }}>
           {page.content.map((tx) => (
             <TransactionRow
               key={tx.id}
@@ -245,7 +292,15 @@ export default function Transactions() {
       )}
 
       {page.totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 18, marginTop: 24 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 18,
+            marginTop: 24,
+          }}
+        >
           <button
             className="btn btn-ghost"
             disabled={page.first}
@@ -254,7 +309,7 @@ export default function Transactions() {
           >
             Anterior
           </button>
-          <span style={{ fontSize: 13, color: 'var(--muted)' }}>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}>
             {page.number + 1} de {page.totalPages}
           </span>
           <button
@@ -289,36 +344,55 @@ export default function Transactions() {
 function TransactionRow({
   tx,
   deleting,
-  onDelete
+  onDelete,
 }: {
   tx: Transaction;
   deleting: boolean;
   onDelete: () => void;
 }) {
-  const date = new Date(tx.date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  const date = new Date(tx.date).toLocaleDateString("es-CO", {
+    day: "numeric",
+    month: "short",
+  });
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+        }}
+      >
         <div style={{ minWidth: 0 }}>
-          <p style={{ fontWeight: 600, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <p
+            style={{
+              fontWeight: 600,
+              fontSize: 15,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {tx.description}
           </p>
           <p className="eyebrow" style={{ marginTop: 4 }}>
-            {tx.originType === 'SAVINGS' && tx.originName
+            {tx.originType === "SAVINGS" && tx.originName
               ? `Cuenta ${tx.originName}`
-              : (tx.originName || ORIGIN_LABELS[tx.originType])}
-            {tx.pocketName ? ` · ${tx.pocketName}` : ''}
-            {tx.category ? ` · ${tx.category}` : ''}
-            {' · '}{date}
+              : tx.originName || ORIGIN_LABELS[tx.originType]}
+            {tx.pocketName ? ` · ${tx.pocketName}` : ""}
+            {tx.category ? ` · ${tx.category}` : ""}
+            {" · "}
+            {date}
           </p>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
           <p className="amount" style={{ fontSize: 17, fontWeight: 700 }}>
             {money(tx.amount)}
           </p>
           {tx.installments > 1 && (
-            <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
+            <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
               cuota {tx.currentInstallment}/{tx.installments}
             </p>
           )}
@@ -326,29 +400,35 @@ function TransactionRow({
       </div>
 
       {tx.shared && tx.sharedWithName && (
-        <p style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
-          Compartido con <strong style={{ color: 'var(--ink)' }}>{tx.sharedWithName}</strong>
-          {tx.sharedAmount ? ` · cobrar ${money(tx.sharedAmount)}` : ''}
+        <p style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
+          Compartido con{" "}
+          <strong style={{ color: "var(--ink)" }}>{tx.sharedWithName}</strong>
+          {tx.sharedAmount ? ` · cobrar ${money(tx.sharedAmount)}` : ""}
           {tx.paymentDeadline
-            ? ` · límite ${new Date(tx.paymentDeadline).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}`
-            : ''}
+            ? ` · límite ${new Date(tx.paymentDeadline).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}`
+            : ""}
         </p>
       )}
 
       {tx.thirdParty && tx.thirdPartyOwnerName && (
-        <p style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
-          Gasto de <strong style={{ color: 'var(--ink)' }}>{tx.thirdPartyOwnerName}</strong>
+        <p style={{ marginTop: 10, fontSize: 13, color: "var(--muted)" }}>
+          Gasto de{" "}
+          <strong style={{ color: "var(--ink)" }}>
+            {tx.thirdPartyOwnerName}
+          </strong>
         </p>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+      <div
+        style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}
+      >
         <button
           className="btn btn-ghost"
           onClick={onDelete}
           disabled={deleting}
-          style={{ ...smallBtn, color: 'var(--danger)' }}
+          style={{ ...smallBtn, color: "var(--danger)" }}
         >
-          {deleting ? 'Eliminando…' : 'Eliminar'}
+          {deleting ? "Eliminando…" : "Eliminar"}
         </button>
       </div>
     </div>
@@ -368,7 +448,7 @@ function TransactionForm({
   accounts,
   cash,
   onCancel,
-  onSaved
+  onSaved,
 }: {
   cards: CreditCard[];
   accounts: SavingsAccount[];
@@ -376,19 +456,21 @@ function TransactionForm({
   onCancel: () => void;
   onSaved: (tx: Transaction) => void;
 }) {
-  const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [category, setCategory] = useState("");
   const [originType, setOriginType] = useState<OriginType>(
-    cards.length > 0 ? 'CREDIT_CARD' : accounts.length > 0 ? 'SAVINGS' : 'CASH'
+    cards.length > 0 ? "CREDIT_CARD" : accounts.length > 0 ? "SAVINGS" : "CASH",
   );
-  const [creditCardId, setCreditCardId] = useState(cards[0]?.id ?? '');
-  const [savingsAccountId, setSavingsAccountId] = useState(accounts[0]?.id ?? '');
-  const [pocketId, setPocketId] = useState('');
-  const [installments, setInstallments] = useState('1');
+  const [creditCardId, setCreditCardId] = useState(cards[0]?.id ?? "");
+  const [savingsAccountId, setSavingsAccountId] = useState(
+    accounts[0]?.id ?? "",
+  );
+  const [pocketId, setPocketId] = useState("");
+  const [installments, setInstallments] = useState("1");
   const [shared, setShared] = useState(false);
-  const [sharedWithName, setSharedWithName] = useState('');
-  const [sharedAmount, setSharedAmount] = useState('');
+  const [sharedWithName, setSharedWithName] = useState("");
+  const [sharedAmount, setSharedAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -396,33 +478,52 @@ function TransactionForm({
   const pockets: Pocket[] = selectedAccount?.pockets ?? [];
 
   const amountNum = Number(amount);
-  const amountEntered = amount.trim() !== '' && amountNum >= 0.01;
-  const exceedsCash = originType === 'CASH' && amountEntered && cash && amountNum > cash.balance;
+  const amountEntered = amount.trim() !== "" && amountNum >= 0.01;
+  const exceedsCash =
+    originType === "CASH" && amountEntered && cash && amountNum > cash.balance;
 
   /* Motivo de bloqueo por origen — cubre exactamente los tres casos que un
      QA esperaría: sin tarjetas, sin cuentas, y sin efectivo suficiente. Es
      el único punto de verdad que decide si el submit puede habilitarse. */
   let originWarning: string | null = null;
-  if (originType === 'CREDIT_CARD' && cards.length === 0) {
-    originWarning = 'No tienes tarjetas registradas.';
-  } else if (originType === 'SAVINGS' && accounts.length === 0) {
-    originWarning = 'No tienes cuentas de ahorro registradas.';
-  } else if (originType === 'CASH') {
+  if (originType === "CREDIT_CARD" && cards.length === 0) {
+    originWarning = "No tienes tarjetas registradas.";
+  } else if (originType === "SAVINGS") {
+    if (accounts.length === 0) {
+      originWarning = "No tienes cuentas de ahorro registradas.";
+    } else if (pocketId) {
+      const selectedPocket = pockets.find((p) => p.id === pocketId);
+      if (
+        selectedPocket &&
+        amountEntered &&
+        amountNum > selectedPocket.balance
+      ) {
+        originWarning = `Ese monto supera el disponible del bolsillo (${money(selectedPocket.balance)}).`;
+      }
+    } else if (
+      selectedAccount &&
+      amountEntered &&
+      amountNum > selectedAccount.availableBalance
+    ) {
+      originWarning = `Ese monto supera el disponible de la cuenta (${money(selectedAccount.availableBalance)}).`;
+    }
+  } else if (originType === "CASH") {
     if (!cash || cash.balance <= 0) {
-      originWarning = 'No tienes efectivo registrado.';
+      originWarning = "No tienes efectivo registrado.";
     } else if (exceedsCash) {
       originWarning = `Ese monto supera tu efectivo disponible (${money(cash.balance)}).`;
     }
   }
 
   const valid =
-    description.trim() !== '' &&
+    description.trim() !== "" &&
     amountEntered &&
     originWarning === null &&
-    (originType !== 'CREDIT_CARD' || creditCardId !== '') &&
-    (originType !== 'SAVINGS' || savingsAccountId !== '') &&
-    Number.isInteger(installmentsNum()) && installmentsNum() >= 1 &&
-    (!shared || sharedWithName.trim() !== '');
+    (originType !== "CREDIT_CARD" || creditCardId !== "") &&
+    (originType !== "SAVINGS" || savingsAccountId !== "") &&
+    Number.isInteger(installmentsNum()) &&
+    installmentsNum() >= 1 &&
+    (!shared || sharedWithName.trim() !== "");
 
   function installmentsNum() {
     return Number(installments);
@@ -439,33 +540,48 @@ function TransactionForm({
         amount: amountNum,
         category: category || undefined,
         originType,
-        creditCardId: originType === 'CREDIT_CARD' ? creditCardId : undefined,
-        savingsAccountId: originType === 'SAVINGS' ? savingsAccountId : undefined,
-        pocketId: originType === 'SAVINGS' && pocketId ? pocketId : undefined,
+        creditCardId: originType === "CREDIT_CARD" ? creditCardId : undefined,
+        savingsAccountId:
+          originType === "SAVINGS" ? savingsAccountId : undefined,
+        pocketId: originType === "SAVINGS" && pocketId ? pocketId : undefined,
         shared: shared || undefined,
         sharedWithName: shared ? sharedWithName.trim() : undefined,
         sharedAmount: shared && sharedAmount ? Number(sharedAmount) : undefined,
-        installments: installmentsNum() > 1 ? installmentsNum() : undefined
+        installments: installmentsNum() > 1 ? installmentsNum() : undefined,
       };
-      const tx = await api.post<Transaction>('/api/v1/transactions', body);
+      const tx = await api.post<Transaction>("/api/v1/transactions", body);
       onSaved(tx);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos registrar el movimiento.'));
+      setError(errorMessage(err, "No pudimos registrar el movimiento."));
       setBusy(false);
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="card" style={{ marginTop: 22, display: 'grid', gap: 12 }}>
-      <Field label="Descripción" type="text" value={description} onChange={setDescription}
-             placeholder="¿En qué gastaste?" />
-      <MoneyField label="Monto" value={amount} onChange={setAmount}
-             placeholder="50000" hint="Debe ser mayor a 0." />
+    <form
+      onSubmit={onSubmit}
+      className="card"
+      style={{ marginTop: 22, display: "grid", gap: 12 }}
+    >
+      <Field
+        label="Descripción"
+        type="text"
+        value={description}
+        onChange={setDescription}
+        placeholder="¿En qué gastaste?"
+      />
+      <MoneyField
+        label="Monto"
+        value={amount}
+        onChange={setAmount}
+        placeholder="50000"
+        hint="Debe ser mayor a 0."
+      />
 
-      <div style={{ display: 'grid', gap: 6 }}>
+      <div style={{ display: "grid", gap: 6 }}>
         <span className="eyebrow">Origen</span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {(['CREDIT_CARD', 'SAVINGS', 'CASH'] as const).map((o) => (
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["CREDIT_CARD", "SAVINGS", "CASH"] as const).map((o) => (
             <button
               key={o}
               type="button"
@@ -479,79 +595,134 @@ function TransactionForm({
         </div>
       </div>
 
-      {originType === 'CREDIT_CARD' && cards.length > 0 && (
+      {originType === "CREDIT_CARD" && cards.length > 0 && (
         <Select label="Tarjeta" value={creditCardId} onChange={setCreditCardId}>
           {cards.map((c) => (
             <option key={c.id} value={c.id}>
-              {(c.nickname || c.institution)} — disponible {money(c.availableAmount)}
+              {c.nickname || c.institution} — disponible{" "}
+              {money(c.availableAmount)}
             </option>
           ))}
         </Select>
       )}
 
-      {originType === 'SAVINGS' && accounts.length > 0 && (
+      {originType === "SAVINGS" && accounts.length > 0 && (
         <>
           <Select
             label="Cuenta"
             value={savingsAccountId}
-            onChange={(v) => { setSavingsAccountId(v); setPocketId(''); }}
+            onChange={(v) => {
+              setSavingsAccountId(v);
+              setPocketId("");
+            }}
           >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {(a.nickname || a.institution)} — {money(a.availableBalance)}
+                {a.nickname || a.institution} — {money(a.availableBalance)}
               </option>
             ))}
           </Select>
 
           {pockets.length > 0 && (
-            <Select label="Bolsillo (opcional)" value={pocketId} onChange={setPocketId}>
+            <Select
+              label="Bolsillo (opcional)"
+              value={pocketId}
+              onChange={setPocketId}
+            >
               <option value="">Ninguno</option>
               {pockets.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} — {money(p.balance)}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name} — {money(p.balance)}
+                </option>
               ))}
             </Select>
           )}
         </>
       )}
 
-      {originType === 'CASH' && cash && cash.balance > 0 && (
-        <p style={{ fontSize: 13, color: 'var(--muted)' }}>
-          Disponible en efectivo: <strong style={{ color: 'var(--ink)' }}>{money(cash.balance)}</strong>
+      {originType === "CASH" && cash && cash.balance > 0 && (
+        <p style={{ fontSize: 13, color: "var(--muted)" }}>
+          Disponible en efectivo:{" "}
+          <strong style={{ color: "var(--ink)" }}>{money(cash.balance)}</strong>
         </p>
       )}
 
       {originWarning && <BlockingWarning message={originWarning} />}
 
-      <Select label="Categoría (opcional)" value={category} onChange={setCategory}>
+      <Select
+        label="Categoría (opcional)"
+        value={category}
+        onChange={setCategory}
+      >
         <option value="">Sin categoría</option>
-        {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+        {CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
       </Select>
 
-      <Field label="Cuotas" type="number" value={installments} onChange={setInstallments}
-             placeholder="1" hint="1 si es de contado." />
+      <Field
+        label="Cuotas"
+        type="number"
+        value={installments}
+        onChange={setInstallments}
+        placeholder="1"
+        hint="1 si es de contado."
+      />
 
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
-        <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 14,
+          cursor: "pointer",
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={shared}
+          onChange={(e) => setShared(e.target.checked)}
+        />
         Es un gasto compartido
       </label>
 
       {shared && (
         <>
-          <Field label="¿Con quién?" type="text" value={sharedWithName} onChange={setSharedWithName}
-                 placeholder="Nombre de la persona" />
-          <MoneyField label="Monto a cobrar (opcional)" value={sharedAmount} onChange={setSharedAmount}
-                 placeholder="25000" />
+          <Field
+            label="¿Con quién?"
+            type="text"
+            value={sharedWithName}
+            onChange={setSharedWithName}
+            placeholder="Nombre de la persona"
+          />
+          <MoneyField
+            label="Monto a cobrar (opcional)"
+            value={sharedAmount}
+            onChange={setSharedAmount}
+            placeholder="25000"
+          />
         </>
       )}
 
       {error && <InlineAlert message={error} />}
 
-      <button className="btn" type="submit" disabled={busy || !valid}
-              style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
-        {busy ? 'Guardando…' : 'Registrar movimiento'}
+      <button
+        className="btn"
+        type="submit"
+        disabled={busy || !valid}
+        style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}
+      >
+        {busy ? "Guardando…" : "Registrar movimiento"}
       </button>
-      <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
-              style={{ borderColor: 'var(--line)' }}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={onCancel}
+        disabled={busy}
+        style={{ borderColor: "var(--line)" }}
+      >
         Cancelar
       </button>
     </form>
@@ -560,16 +731,16 @@ function TransactionForm({
 
 // Mismos estilos de botón que Cards/Savings, por coherencia entre pantallas.
 const smallBtn = {
-  width: 'auto',
-  padding: '6px 12px',
+  width: "auto",
+  padding: "6px 12px",
   fontSize: 13,
-  borderColor: 'var(--line)'
+  borderColor: "var(--line)",
 } as const;
 
 /** Botón en estado activo: relleno --ink, texto claro. La acción abierta. */
 const activeBtn = {
   ...smallBtn,
-  background: 'var(--ink)',
-  color: 'var(--paper)',
-  borderColor: 'var(--ink)'
+  background: "var(--ink)",
+  color: "var(--paper)",
+  borderColor: "var(--ink)",
 } as const;
