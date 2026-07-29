@@ -375,6 +375,15 @@ function CardPaymentForm({
   } else if (origin === "SAVINGS") {
     if (accounts.length === 0) {
       originWarning = "No tienes cuentas de ahorro registradas.";
+    } else if (pocketId) {
+      const selectedPocket = pockets.find((p) => p.id === pocketId);
+      if (
+        selectedPocket &&
+        amountEntered &&
+        amountNum > selectedPocket.balance
+      ) {
+        originWarning = `Ese monto supera el disponible del bolsillo (${money(selectedPocket.balance)}).`;
+      }
     } else if (
       selectedAccount &&
       amountEntered &&
