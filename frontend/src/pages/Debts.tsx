@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import { api } from '../lib/api';
-import { Field } from './Login';
-import { Select } from '../components/Select';
-import { MoneyField } from '../components/MoneyField';
-import { BlockingWarning } from '../components/BlockingWarning';
-import { money } from '../lib/money';
-import { errorMessage } from '../lib/errorMessage';
-import { InlineAlert } from '../components/InlineAlert';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { FixedDebt, SavingsAccount, Pocket, Cash } from '../types';
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { api } from "../lib/api";
+import { Field } from "./Login";
+import { Select } from "../components/Select";
+import { MoneyField } from "../components/MoneyField";
+import { BlockingWarning } from "../components/BlockingWarning";
+import { money } from "../lib/money";
+import { errorMessage } from "../lib/errorMessage";
+import { InlineAlert } from "../components/InlineAlert";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import type { FixedDebt, SavingsAccount, Pocket, Cash } from "../types";
 
 /* ============================================================
    Deudas fijas (créditos que se pagan en abonos).
@@ -52,10 +52,10 @@ interface DebtPatchRequest {
 }
 
 /** POST pago: espeja DebtPaymentRequest. originType solo CASH o SAVINGS. */
-type PaymentOrigin = 'NONE' | 'CASH' | 'SAVINGS';
+type PaymentOrigin = "NONE" | "CASH" | "SAVINGS";
 interface DebtPaymentBody {
   amount: number;
-  originType?: 'CASH' | 'SAVINGS';
+  originType?: "CASH" | "SAVINGS";
   savingsAccountId?: string;
   pocketId?: string;
 }
@@ -73,16 +73,16 @@ export default function Debts() {
   async function load() {
     setError(null);
     try {
-      setDebts(await api.get<FixedDebt[]>('/api/v1/debts'));
+      setDebts(await api.get<FixedDebt[]>("/api/v1/debts"));
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos cargar tus deudas.'));
+      setError(errorMessage(err, "No pudimos cargar tus deudas."));
     }
   }
 
   async function refreshOrigins() {
     const [a, k] = await Promise.all([
-      api.get<SavingsAccount[]>('/api/v1/savings').catch(() => []),
-      api.get<Cash>('/api/v1/cash').catch(() => null)
+      api.get<SavingsAccount[]>("/api/v1/savings").catch(() => []),
+      api.get<Cash>("/api/v1/cash").catch(() => null),
     ]);
     setAccounts(a);
     setCash(k);
@@ -109,10 +109,10 @@ export default function Debts() {
     setError(null);
     setDeletingId(debt.id);
     try {
-      await api.del('/api/v1/debts/' + debt.id);
+      await api.del("/api/v1/debts/" + debt.id);
       setDebts((prev) => (prev ? prev.filter((d) => d.id !== debt.id) : prev));
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos eliminar la deuda.'));
+      setError(errorMessage(err, "No pudimos eliminar la deuda."));
     } finally {
       setDeletingId(null);
     }
@@ -129,20 +129,31 @@ export default function Debts() {
   if (!debts) {
     return (
       <main>
-        <p style={{ color: 'var(--muted)' }}>Cargando…</p>
+        <p style={{ color: "var(--muted)" }}>Cargando…</p>
       </main>
     );
   }
 
   return (
     <main>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <header
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <p className="eyebrow">Tus deudas</p>
         {!adding && (
           <button
             className="btn btn-ghost"
             onClick={() => setAdding(true)}
-            style={{ width: 'auto', padding: '6px 10px', fontSize: 13, borderColor: 'var(--line)' }}
+            style={{
+              width: "auto",
+              padding: "6px 10px",
+              fontSize: 13,
+              borderColor: "var(--line)",
+            }}
           >
             Agregar deuda
           </button>
@@ -166,14 +177,22 @@ export default function Debts() {
       )}
 
       {!adding && debts.length === 0 && (
-        <div className="card" style={{ marginTop: 22, color: 'var(--muted)', fontSize: 14, lineHeight: 1.5 }}>
+        <div
+          className="card"
+          style={{
+            marginTop: 22,
+            color: "var(--muted)",
+            fontSize: 14,
+            lineHeight: 1.5,
+          }}
+        >
           Todavía no tienes deudas registradas. Sirve tanto para un crédito
           bancario con cuota fija como para "le debo $200.000 a mi tío" sin
           fecha ni cuota — agrega la primera para seguir cuánto te falta.
         </div>
       )}
 
-      <section style={{ marginTop: 22, display: 'grid', gap: 12 }}>
+      <section style={{ marginTop: 22, display: "grid", gap: 12 }}>
         {debts.map((d) => (
           <DebtCard
             key={d.id}
@@ -200,7 +219,11 @@ export default function Debts() {
       {pendingDelete && (
         <ConfirmDialog
           title="Eliminar deuda"
-          message={'¿Eliminar "' + (pendingDelete.description || pendingDelete.institution) + '"?'}
+          message={
+            '¿Eliminar "' +
+            (pendingDelete.description || pendingDelete.institution) +
+            '"?'
+          }
           confirmLabel="Eliminar deuda"
           tone="danger"
           onConfirm={() => confirmDelete(pendingDelete)}
@@ -221,7 +244,7 @@ function DebtCard({
   onStopEdit,
   onSaved,
   onPaid,
-  onDelete
+  onDelete,
 }: {
   debt: FixedDebt;
   accounts: SavingsAccount[];
@@ -242,14 +265,27 @@ function DebtCard({
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 12,
+        }}
+      >
         <div>
-          <p style={{ fontWeight: 600, fontSize: 15 }}>{debt.description || debt.institution}</p>
+          <p style={{ fontWeight: 600, fontSize: 15 }}>
+            {debt.description || debt.institution}
+          </p>
           {debt.description && (
-            <p className="eyebrow" style={{ marginTop: 2 }}>{debt.institution}</p>
+            <p className="eyebrow" style={{ marginTop: 2 }}>
+              {debt.institution}
+            </p>
           )}
           {isInformal && !debt.paidOff && (
-            <p className="eyebrow" style={{ marginTop: 2 }}>Sin cuota ni fecha fija</p>
+            <p className="eyebrow" style={{ marginTop: 2 }}>
+              Sin cuota ni fecha fija
+            </p>
           )}
         </div>
         {debt.paidOff && (
@@ -258,12 +294,12 @@ function DebtCard({
             style={{
               fontSize: 12,
               fontWeight: 700,
-              color: 'var(--safe)',
-              background: 'var(--safe-soft)',
-              border: '1px solid var(--safe)',
+              color: "var(--safe)",
+              background: "var(--safe-soft)",
+              border: "1px solid var(--safe)",
               borderRadius: 999,
-              padding: '2px 10px',
-              whiteSpace: 'nowrap'
+              padding: "2px 10px",
+              whiteSpace: "nowrap",
             }}
           >
             ✓ Saldada
@@ -276,14 +312,25 @@ function DebtCard({
         {debt.paidOff ? (
           <>
             <span className="eyebrow">Deuda saldada</span>
-            <p className="amount" style={{ fontSize: 22, fontWeight: 800, marginTop: 2, color: 'var(--safe)' }}>
+            <p
+              className="amount"
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                marginTop: 2,
+                color: "var(--safe)",
+              }}
+            >
               ¡Pagaste todo!
             </p>
           </>
         ) : (
           <>
             <span className="eyebrow">Te falta</span>
-            <p className="amount" style={{ fontSize: 28, fontWeight: 800, marginTop: 2 }}>
+            <p
+              className="amount"
+              style={{ fontSize: 28, fontWeight: 800, marginTop: 2 }}
+            >
               {money(debt.remainingBalance)}
             </p>
           </>
@@ -296,7 +343,7 @@ function DebtCard({
         progress={debt.progressPercentage}
       />
 
-      <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+      <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
         {!debt.paidOff && (
           <button
             className="btn btn-ghost"
@@ -319,9 +366,11 @@ function DebtCard({
           className="btn btn-ghost"
           onClick={onDelete}
           disabled={deleting}
-          style={paying || editing ? dimBtn : { ...smallBtn, color: 'var(--danger)' }}
+          style={
+            paying || editing ? dimBtn : { ...smallBtn, color: "var(--danger)" }
+          }
         >
-          {deleting ? 'Eliminando…' : 'Eliminar'}
+          {deleting ? "Eliminando…" : "Eliminar"}
         </button>
       </div>
 
@@ -339,7 +388,12 @@ function DebtCard({
       )}
 
       {editing && (
-        <DebtForm embedded initial={debt} onCancel={onStopEdit} onSaved={onSaved} />
+        <DebtForm
+          embedded
+          initial={debt}
+          onCancel={onStopEdit}
+          onSaved={onSaved}
+        />
       )}
     </div>
   );
@@ -350,24 +404,49 @@ function DebtCard({
  * UtilizationBar: aquí el 100% es lo bueno (deuda saldada), se llena en verde
  * sobrio y no hay umbral de peligro ni color de alerta.
  */
-function DebtProgressBar({ paid, total, progress }: { paid: number; total: number; progress: number }) {
+function DebtProgressBar({
+  paid,
+  total,
+  progress,
+}: {
+  paid: number;
+  total: number;
+  progress: number;
+}) {
   const fill = Math.min(Math.max(progress, 0), 100);
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ position: 'relative', height: 10, borderRadius: 999, background: 'var(--line)' }}>
+      <div
+        style={{
+          position: "relative",
+          height: 10,
+          borderRadius: 999,
+          background: "var(--line)",
+        }}
+      >
         <div
           style={{
-            width: fill + '%',
-            height: '100%',
+            width: fill + "%",
+            height: "100%",
             borderRadius: 999,
-            background: 'var(--safe)',
-            transition: 'width .4s ease'
+            background: "var(--safe)",
+            transition: "width .4s ease",
           }}
         />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Pagado {money(paid)}</span>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Total {money(total)}</span>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginTop: 6,
+        }}
+      >
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>
+          Pagado {money(paid)}
+        </span>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>
+          Total {money(total)}
+        </span>
       </div>
     </div>
   );
@@ -393,7 +472,7 @@ function DebtPaymentForm({
   accounts,
   cash,
   onCancel,
-  onDone
+  onDone,
 }: {
   debt: FixedDebt;
   accounts: SavingsAccount[];
@@ -401,10 +480,12 @@ function DebtPaymentForm({
   onCancel: () => void;
   onDone: (debt: FixedDebt) => void;
 }) {
-  const [amount, setAmount] = useState('');
-  const [origin, setOrigin] = useState<PaymentOrigin>('NONE');
-  const [savingsAccountId, setSavingsAccountId] = useState(accounts[0]?.id ?? '');
-  const [pocketId, setPocketId] = useState('');
+  const [amount, setAmount] = useState("");
+  const [origin, setOrigin] = useState<PaymentOrigin>("NONE");
+  const [savingsAccountId, setSavingsAccountId] = useState(
+    accounts[0]?.id ?? "",
+  );
+  const [pocketId, setPocketId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -412,7 +493,7 @@ function DebtPaymentForm({
   const pockets: Pocket[] = selectedAccount?.pockets ?? [];
 
   const amountNum = Number(amount);
-  const amountEntered = amount.trim() !== '' && amountNum > 0;
+  const amountEntered = amount.trim() !== "" && amountNum > 0;
   const exceedsDebt = amountEntered && amountNum > debt.remainingBalance;
 
   /* Motivo de bloqueo — el mismo lenguaje que en Transacciones: sin
@@ -421,16 +502,29 @@ function DebtPaymentForm({
   let originWarning: string | null = null;
   if (exceedsDebt) {
     originWarning = `Ese monto supera lo que falta (${money(debt.remainingBalance)}).`;
-  } else if (origin === 'CASH') {
+  } else if (origin === "CASH") {
     if (!cash || cash.balance <= 0) {
-      originWarning = 'No tienes efectivo registrado.';
+      originWarning = "No tienes efectivo registrado.";
     } else if (amountEntered && amountNum > cash.balance) {
       originWarning = `Ese monto supera tu efectivo disponible (${money(cash.balance)}).`;
     }
-  } else if (origin === 'SAVINGS') {
+  } else if (origin === "SAVINGS") {
     if (accounts.length === 0) {
-      originWarning = 'No tienes cuentas de ahorro registradas.';
-    } else if (selectedAccount && amountEntered && amountNum > selectedAccount.availableBalance) {
+      originWarning = "No tienes cuentas de ahorro registradas.";
+    } else if (pocketId) {
+      const selectedPocket = pockets.find((p) => p.id === pocketId);
+      if (
+        selectedPocket &&
+        amountEntered &&
+        amountNum > selectedPocket.balance
+      ) {
+        originWarning = `Ese monto supera el disponible del bolsillo (${money(selectedPocket.balance)}).`;
+      }
+    } else if (
+      selectedAccount &&
+      amountEntered &&
+      amountNum > selectedAccount.availableBalance
+    ) {
       originWarning = `Ese monto supera el disponible de la cuenta (${money(selectedAccount.availableBalance)}).`;
     }
   }
@@ -438,11 +532,12 @@ function DebtPaymentForm({
   const valid =
     amountEntered &&
     originWarning === null &&
-    (origin !== 'SAVINGS' || savingsAccountId !== '');
+    (origin !== "SAVINGS" || savingsAccountId !== "");
 
   // Si la deuda no tiene cuota definida, no hay un monto "típico" que sugerir —
   // el usuario decide cuánto abonar libremente.
-  const paymentPlaceholder = debt.monthlyPayment != null ? String(debt.monthlyPayment) : '50000';
+  const paymentPlaceholder =
+    debt.monthlyPayment != null ? String(debt.monthlyPayment) : "50000";
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -452,14 +547,17 @@ function DebtPaymentForm({
     try {
       const body: DebtPaymentBody = {
         amount: amountNum,
-        originType: origin === 'NONE' ? undefined : origin,
-        savingsAccountId: origin === 'SAVINGS' ? savingsAccountId : undefined,
-        pocketId: origin === 'SAVINGS' && pocketId ? pocketId : undefined
+        originType: origin === "NONE" ? undefined : origin,
+        savingsAccountId: origin === "SAVINGS" ? savingsAccountId : undefined,
+        pocketId: origin === "SAVINGS" && pocketId ? pocketId : undefined,
       };
-      const fresh = await api.post<FixedDebt>('/api/v1/debts/' + debt.id + '/payments', body);
+      const fresh = await api.post<FixedDebt>(
+        "/api/v1/debts/" + debt.id + "/payments",
+        body,
+      );
       onDone(fresh);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos registrar el pago.'));
+      setError(errorMessage(err, "No pudimos registrar el pago."));
       setBusy(false);
     }
   }
@@ -467,8 +565,14 @@ function DebtPaymentForm({
   return (
     <form
       onSubmit={onSubmit}
-      style={{ marginTop: 10, display: 'grid', gap: 10, border: '1px solid var(--line)',
-               borderRadius: 10, padding: 12 }}
+      style={{
+        marginTop: 10,
+        display: "grid",
+        gap: 10,
+        border: "1px solid var(--line)",
+        borderRadius: 10,
+        padding: 12,
+      }}
     >
       <p style={{ fontWeight: 600, fontSize: 14 }}>¿Cuánto quieres abonar?</p>
       <MoneyField
@@ -476,13 +580,13 @@ function DebtPaymentForm({
         value={amount}
         onChange={setAmount}
         placeholder={paymentPlaceholder}
-        hint={'Te falta ' + money(debt.remainingBalance) + '.'}
+        hint={"Te falta " + money(debt.remainingBalance) + "."}
       />
 
-      <div style={{ display: 'grid', gap: 6 }}>
+      <div style={{ display: "grid", gap: 6 }}>
         <span className="eyebrow">¿De dónde sale?</span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {(['NONE', 'CASH', 'SAVINGS'] as const).map((o) => (
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["NONE", "CASH", "SAVINGS"] as const).map((o) => (
             <button
               key={o}
               type="button"
@@ -494,38 +598,48 @@ function DebtPaymentForm({
             </button>
           ))}
         </div>
-        {origin === 'NONE' && (
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+        {origin === "NONE" && (
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>
             Pagó alguien más fuera de la app: solo se registra en la deuda.
           </span>
         )}
       </div>
 
-      {origin === 'CASH' && cash && cash.balance > 0 && (
-        <p style={{ fontSize: 13, color: 'var(--muted)' }}>
-          Disponible en efectivo: <strong style={{ color: 'var(--ink)' }}>{money(cash.balance)}</strong>
+      {origin === "CASH" && cash && cash.balance > 0 && (
+        <p style={{ fontSize: 13, color: "var(--muted)" }}>
+          Disponible en efectivo:{" "}
+          <strong style={{ color: "var(--ink)" }}>{money(cash.balance)}</strong>
         </p>
       )}
 
-      {origin === 'SAVINGS' && accounts.length > 0 && (
+      {origin === "SAVINGS" && accounts.length > 0 && (
         <>
           <Select
             label="Cuenta"
             value={savingsAccountId}
-            onChange={(v) => { setSavingsAccountId(v); setPocketId(''); }}
+            onChange={(v) => {
+              setSavingsAccountId(v);
+              setPocketId("");
+            }}
           >
             {accounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {(a.nickname || a.institution)} — {money(a.availableBalance)}
+                {a.nickname || a.institution} — {money(a.availableBalance)}
               </option>
             ))}
           </Select>
 
           {pockets.length > 0 && (
-            <Select label="Bolsillo (opcional)" value={pocketId} onChange={setPocketId}>
+            <Select
+              label="Bolsillo (opcional)"
+              value={pocketId}
+              onChange={setPocketId}
+            >
               <option value="">Ninguno</option>
               {pockets.map((p) => (
-                <option key={p.id} value={p.id}>{p.name} — {money(p.balance)}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name} — {money(p.balance)}
+                </option>
               ))}
             </Select>
           )}
@@ -536,16 +650,27 @@ function DebtPaymentForm({
 
       {error && <InlineAlert message={error} />}
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: "flex", gap: 8 }}>
         <button
           className="btn"
           type="submit"
           disabled={busy || !valid}
-          style={{ width: 'auto', padding: '8px 16px', fontSize: 13, opacity: busy || !valid ? 0.5 : 1 }}
+          style={{
+            width: "auto",
+            padding: "8px 16px",
+            fontSize: 13,
+            opacity: busy || !valid ? 0.5 : 1,
+          }}
         >
-          {busy ? 'Procesando…' : 'Registrar pago'}
+          {busy ? "Procesando…" : "Registrar pago"}
         </button>
-        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy} style={smallBtn}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onCancel}
+          disabled={busy}
+          style={smallBtn}
+        >
           Cancelar
         </button>
       </div>
@@ -554,9 +679,9 @@ function DebtPaymentForm({
 }
 
 const ORIGIN_OPTION_LABELS: Record<PaymentOrigin, string> = {
-  NONE: 'Nadie (solo registrar)',
-  CASH: 'Efectivo',
-  SAVINGS: 'Cuenta'
+  NONE: "Nadie (solo registrar)",
+  CASH: "Efectivo",
+  SAVINGS: "Cuenta",
 };
 
 /**
@@ -575,7 +700,7 @@ function DebtForm({
   initial,
   embedded,
   onCancel,
-  onSaved
+  onSaved,
 }: {
   initial?: FixedDebt;
   embedded?: boolean;
@@ -584,38 +709,42 @@ function DebtForm({
 }) {
   const editing = initial != null;
 
-  const [institution, setInstitution] = useState(initial?.institution ?? '');
-  const [description, setDescription] = useState(initial?.description ?? '');
-  const [totalAmount, setTotalAmount] = useState(initial ? String(initial.totalAmount) : '');
+  const [institution, setInstitution] = useState(initial?.institution ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [totalAmount, setTotalAmount] = useState(
+    initial ? String(initial.totalAmount) : "",
+  );
   const [monthlyPayment, setMonthlyPayment] = useState(
-    initial?.monthlyPayment != null ? String(initial.monthlyPayment) : ''
+    initial?.monthlyPayment != null ? String(initial.monthlyPayment) : "",
   );
   const [interestRate, setInterestRate] = useState(
-    initial?.interestRate != null ? String(initial.interestRate) : ''
+    initial?.interestRate != null ? String(initial.interestRate) : "",
   );
   const [paymentDueDay, setPaymentDueDay] = useState(
-    initial?.paymentDueDay != null ? String(initial.paymentDueDay) : ''
+    initial?.paymentDueDay != null ? String(initial.paymentDueDay) : "",
   );
   const [remainingBalance, setRemainingBalance] = useState(
-    initial ? String(initial.remainingBalance) : ''
+    initial ? String(initial.remainingBalance) : "",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const totalNum = Number(totalAmount);
-  const remainingNum = remainingBalance.trim() === '' ? totalNum : Number(remainingBalance);
+  const remainingNum =
+    remainingBalance.trim() === "" ? totalNum : Number(remainingBalance);
 
-  const monthlyEntered = monthlyPayment.trim() !== '';
+  const monthlyEntered = monthlyPayment.trim() !== "";
   const monthlyNum = monthlyEntered ? Number(monthlyPayment) : undefined;
 
-  const dueEntered = paymentDueDay.trim() !== '';
+  const dueEntered = paymentDueDay.trim() !== "";
   const dueNum = dueEntered ? Number(paymentDueDay) : undefined;
 
   const validDay = (n: number) => Number.isInteger(n) && n >= 1 && n <= 31;
 
   const valid =
-    (editing || institution.trim() !== '') &&
-    totalAmount.trim() !== '' && totalNum >= 0.01 &&
+    (editing || institution.trim() !== "") &&
+    totalAmount.trim() !== "" &&
+    totalNum >= 0.01 &&
     (!monthlyEntered || monthlyNum! >= 0.01) &&
     (!dueEntered || validDay(dueNum!)) &&
     remainingNum >= 0;
@@ -631,25 +760,25 @@ function DebtForm({
         const body: DebtPatchRequest = {
           description: description.trim(),
           monthlyPayment: monthlyNum,
-          interestRate: interestRate.trim() === '' ? 0 : Number(interestRate),
-          paymentDueDay: dueNum
+          interestRate: interestRate.trim() === "" ? 0 : Number(interestRate),
+          paymentDueDay: dueNum,
         };
-        debt = await api.patch<FixedDebt>('/api/v1/debts/' + initial.id, body);
+        debt = await api.patch<FixedDebt>("/api/v1/debts/" + initial.id, body);
       } else {
         const body: DebtRequest = {
           institution: institution.trim(),
           description: description.trim(),
           totalAmount: totalNum,
           monthlyPayment: monthlyNum,
-          interestRate: interestRate.trim() === '' ? 0 : Number(interestRate),
+          interestRate: interestRate.trim() === "" ? 0 : Number(interestRate),
           paymentDueDay: dueNum,
-          remainingBalance: remainingNum
+          remainingBalance: remainingNum,
         };
-        debt = await api.post<FixedDebt>('/api/v1/debts', body);
+        debt = await api.post<FixedDebt>("/api/v1/debts", body);
       }
       onSaved(debt);
     } catch (err) {
-      setError(errorMessage(err, 'No pudimos guardar la deuda.'));
+      setError(errorMessage(err, "No pudimos guardar la deuda."));
       setBusy(false);
     }
   }
@@ -657,57 +786,106 @@ function DebtForm({
   return (
     <form
       onSubmit={onSubmit}
-      className={embedded ? undefined : 'card'}
+      className={embedded ? undefined : "card"}
       style={
         embedded
-          ? { marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)',
-              display: 'grid', gap: 12 }
-          : { marginTop: 22, display: 'grid', gap: 12 }
+          ? {
+              marginTop: 14,
+              paddingTop: 14,
+              borderTop: "1px solid var(--line)",
+              display: "grid",
+              gap: 12,
+            }
+          : { marginTop: 22, display: "grid", gap: 12 }
       }
     >
       {editing ? (
-        <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: "grid", gap: 6 }}>
           <span className="eyebrow">Institución</span>
           <p style={{ fontWeight: 600, fontSize: 15 }}>{institution}</p>
         </div>
       ) : (
-        <Field label="Institución" type="text" value={institution} onChange={setInstitution}
-               placeholder="Banco de Bogotá o el nombre de la persona" />
+        <Field
+          label="Institución"
+          type="text"
+          value={institution}
+          onChange={setInstitution}
+          placeholder="Banco de Bogotá o el nombre de la persona"
+        />
       )}
-      <Field label="Descripción (opcional)" type="text" value={description} onChange={setDescription}
-             placeholder="Crédito moto, préstamo de mi tío…" />
+      <Field
+        label="Descripción (opcional)"
+        type="text"
+        value={description}
+        onChange={setDescription}
+        placeholder="Crédito moto, préstamo de mi tío…"
+      />
 
       {editing ? (
-        <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ display: "grid", gap: 6 }}>
           <span className="eyebrow">Monto total</span>
           <p style={{ fontWeight: 600, fontSize: 15 }}>{money(totalNum)}</p>
         </div>
       ) : (
-        <MoneyField label="Monto total" value={totalAmount} onChange={setTotalAmount}
-               placeholder="3000000" hint="Debe ser mayor a 0." />
+        <MoneyField
+          label="Monto total"
+          value={totalAmount}
+          onChange={setTotalAmount}
+          placeholder="3000000"
+          hint="Debe ser mayor a 0."
+        />
       )}
 
-      <MoneyField label="Cuota mensual (opcional)" value={monthlyPayment} onChange={setMonthlyPayment}
-             placeholder="150000" hint="Déjalo vacío si es una deuda informal, sin cuota fija." />
-      <Field label="Tasa de interés (opcional)" type="number" value={interestRate} onChange={setInterestRate}
-             placeholder="0" />
-      <Field label="Día de pago (opcional)" type="number" value={paymentDueDay} onChange={setPaymentDueDay}
-             placeholder="16" hint="Entre 1 y 31 — déjalo vacío si no tiene fecha fija." />
+      <MoneyField
+        label="Cuota mensual (opcional)"
+        value={monthlyPayment}
+        onChange={setMonthlyPayment}
+        placeholder="150000"
+        hint="Déjalo vacío si es una deuda informal, sin cuota fija."
+      />
+      <Field
+        label="Tasa de interés (opcional)"
+        type="number"
+        value={interestRate}
+        onChange={setInterestRate}
+        placeholder="0"
+      />
+      <Field
+        label="Día de pago (opcional)"
+        type="number"
+        value={paymentDueDay}
+        onChange={setPaymentDueDay}
+        placeholder="16"
+        hint="Entre 1 y 31 — déjalo vacío si no tiene fecha fija."
+      />
 
       {!editing && (
-        <MoneyField label="Saldo restante (opcional)" value={remainingBalance}
-               onChange={setRemainingBalance} placeholder="2500000"
-               hint="Déjalo vacío si aún no has pagado nada." />
+        <MoneyField
+          label="Saldo restante (opcional)"
+          value={remainingBalance}
+          onChange={setRemainingBalance}
+          placeholder="2500000"
+          hint="Déjalo vacío si aún no has pagado nada."
+        />
       )}
 
       {error && <InlineAlert message={error} />}
 
-      <button className="btn" type="submit" disabled={busy || !valid}
-              style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}>
-        {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Guardar deuda'}
+      <button
+        className="btn"
+        type="submit"
+        disabled={busy || !valid}
+        style={{ marginTop: 4, opacity: busy || !valid ? 0.5 : 1 }}
+      >
+        {busy ? "Guardando…" : editing ? "Guardar cambios" : "Guardar deuda"}
       </button>
-      <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={busy}
-              style={{ borderColor: 'var(--line)' }}>
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={onCancel}
+        disabled={busy}
+        style={{ borderColor: "var(--line)" }}
+      >
         Cancelar
       </button>
     </form>
@@ -716,23 +894,23 @@ function DebtForm({
 
 // Mismos estilos de botón que Cards/Savings, por coherencia entre pantallas.
 const smallBtn = {
-  width: 'auto',
-  padding: '6px 12px',
+  width: "auto",
+  padding: "6px 12px",
   fontSize: 13,
-  borderColor: 'var(--line)'
+  borderColor: "var(--line)",
 } as const;
 
 /** Botón en estado activo: relleno --ink, texto claro. La acción abierta. */
 const activeBtn = {
   ...smallBtn,
-  background: 'var(--ink)',
-  color: 'var(--paper)',
-  borderColor: 'var(--ink)'
+  background: "var(--ink)",
+  color: "var(--paper)",
+  borderColor: "var(--ink)",
 } as const;
 
 /** Botón atenuado: recede mientras hay otra acción abierta. */
 const dimBtn = {
   ...smallBtn,
-  color: 'var(--muted)',
-  opacity: 0.55
+  color: "var(--muted)",
+  opacity: 0.55,
 } as const;
