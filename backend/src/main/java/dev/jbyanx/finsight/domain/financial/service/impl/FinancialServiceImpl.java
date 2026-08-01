@@ -11,6 +11,9 @@ import dev.jbyanx.finsight.domain.income.entity.IncomeSource;
 import dev.jbyanx.finsight.domain.income.entity.IncomeSource.IncomeFrequency;
 import dev.jbyanx.finsight.domain.income.repository.IncomeSourceRepository;
 import dev.jbyanx.finsight.domain.income.repository.OperationalExpenseRepository;
+import dev.jbyanx.finsight.domain.invoice.entity.Invoice;
+import dev.jbyanx.finsight.domain.invoice.entity.InvoicePayment.PaymentStatus;
+import dev.jbyanx.finsight.domain.invoice.repository.InvoicePaymentRepository;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoiceRepository;
 import dev.jbyanx.finsight.domain.savings.entity.SavingsAccount;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
@@ -20,11 +23,17 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FinancialServiceImpl implements FinancialService {
+
+    /** Cuántos días hacia adelante mira la alerta de facturas próximas. */
+    private static final int UPCOMING_INVOICE_WINDOW_DAYS = 7;
 
     private final CreditCardRepository creditCardRepository;
     private final SavingsAccountRepository savingsAccountRepository;
@@ -33,10 +42,10 @@ public class FinancialServiceImpl implements FinancialService {
     private final IncomeSourceRepository incomeSourceRepository;
     private final OperationalExpenseRepository operationalExpenseRepository;
     private final InvoiceRepository invoiceRepository;
+    private final InvoicePaymentRepository invoicePaymentRepository;
 
     @Override
     public FinancialSummaryResponse getSummary(String userId) {
-
         // --- Tarjetas ---
         List<CreditCard> cards = creditCardRepository
                 .findAllByUserIdAndActiveTrue(userId);
@@ -102,21 +111,9 @@ public class FinancialServiceImpl implements FinancialService {
                         e.getEstimatedAmount(), e.getFrequency(), e.getOccurrencesPerMonth()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // --- Facturas próximas (próximos 7 días) ---
-        int today = LocalDate.now().getDayOfMonth();
-        int sevenDaysLater = LocalDate.now().plusDays(7).getDayOfMonth();
-
-        List<InvoiceAlertResponse> upcomingInvoices = invoiceRepository
-                .findUpcomingByUserId(userId, today, sevenDaysLater).stream()
-                .map(i -> InvoiceAlertResponse.builder()
-                        .invoiceId(i.getId())
-                        .description(i.getDescription())
-                        .amount(i.getAmount())
-                        .dueDay(i.getDueDay())
-                        .own(i.isOwn())
-                        .responsibleName(i.getResponsibleName())
-                        .build())
-                .toList();
+        // --- Facturas próximas ---
+        List<InvoiceAlertResponse> upcomingInvoices =
+                buildUpcomingInvoices(userId, LocalDate.now());
 
         return FinancialSummaryResponse.builder()
                 .totalCreditLimit(totalLimit)
@@ -134,6 +131,87 @@ public class FinancialServiceImpl implements FinancialService {
                 .estimatedNetIncome(estimatedIncome.subtract(estimatedExpenses))
                 .upcomingInvoices(upcomingInvoices)
                 .build();
+    }
+
+    /**
+     * Facturas que vencen dentro de los próximos {@value #UPCOMING_INVOICE_WINDOW_DAYS}
+     * días y que todavía NO tienen pago registrado para ese período.
+     *
+     * Dos cosas que antes estaban mal y por las que una factura pagada seguía
+     * apareciendo como pendiente:
+     *
+     * 1. El vencimiento se calcula como FECHA REAL, no como día del mes. {@code dueDay}
+     *    solo guarda el día, así que la ocurrencia que se está alertando puede caer en
+     *    el mes siguiente: el 28 de agosto, una factura con {@code dueDay = 2} vence en
+     *    SEPTIEMBRE. De esa fecha se deriva el período (mes, año) contra el que se busca
+     *    el pago — usar el mes actual a secas escondería la factura de septiembre por
+     *    un pago de agosto, y viceversa.
+     *
+     * 2. Se cruza contra {@code invoice_payments}. La consulta anterior solo miraba
+     *    {@code dueDay} y {@code active}, así que no tenía forma de saber si estaba pagada.
+     *
+     * De paso queda arreglado el caso de {@code dueDay = 31}: se recorta al último día
+     * del mes, así que en febrero vence el 28 en vez de no vencer nunca.
+     */
+    private List<InvoiceAlertResponse> buildUpcomingInvoices(String userId, LocalDate today) {
+        LocalDate windowEnd = today.plusDays(UPCOMING_INVOICE_WINDOW_DAYS);
+
+        record Upcoming(Invoice invoice, LocalDate dueDate) {}
+
+        List<Upcoming> candidates = invoiceRepository
+                .findAllByUserIdAndActiveTrue(userId).stream()
+                .filter(i -> i.getDueDay() != null)
+                .map(i -> new Upcoming(i, nextDueDate(i.getDueDay(), today)))
+                .filter(u -> !u.dueDate().isBefore(today) && !u.dueDate().isAfter(windowEnd))
+                .toList();
+
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> paidPeriods = invoicePaymentRepository
+                .findPaidPeriods(
+                        candidates.stream().map(u -> u.invoice().getId()).toList(),
+                        PaymentStatus.PAID)
+                .stream()
+                .map(p -> periodKey(p.getInvoiceId(), p.getPeriodYear(), p.getPeriodMonth()))
+                .collect(Collectors.toSet());
+
+        return candidates.stream()
+                .filter(u -> !paidPeriods.contains(periodKey(
+                        u.invoice().getId(),
+                        u.dueDate().getYear(),
+                        u.dueDate().getMonthValue())))
+                .map(u -> InvoiceAlertResponse.builder()
+                        .invoiceId(u.invoice().getId())
+                        .description(u.invoice().getDescription())
+                        .amount(u.invoice().getAmount())
+                        .dueDay(u.invoice().getDueDay())
+                        .own(u.invoice().isOwn())
+                        .responsibleName(u.invoice().getResponsibleName())
+                        .build())
+                .toList();
+    }
+
+    /**
+     * Próxima fecha real de vencimiento a partir del día del mes. Si la ocurrencia de
+     * este mes ya pasó, devuelve la del mes siguiente.
+     */
+    private static LocalDate nextDueDate(int dueDay, LocalDate today) {
+        LocalDate thisMonth = occurrenceIn(YearMonth.from(today), dueDay);
+        return thisMonth.isBefore(today)
+                ? occurrenceIn(YearMonth.from(today).plusMonths(1), dueDay)
+                : thisMonth;
+    }
+
+    /** El día se recorta al rango válido del mes: dueDay 31 en febrero es el 28 (o 29). */
+    private static LocalDate occurrenceIn(YearMonth month, int dueDay) {
+        int day = Math.min(Math.max(dueDay, 1), month.lengthOfMonth());
+        return month.atDay(day);
+    }
+
+    private static String periodKey(String invoiceId, int year, int month) {
+        return invoiceId + ":" + year + ":" + month;
     }
 
     // Cuánto abonar para bajar la utilización al 30%
@@ -165,7 +243,7 @@ public class FinancialServiceImpl implements FinancialService {
         };
     }
 
-    private BigDecimal normalizeExpenseToMonthly(BigDecimal amount, IncomeSource.IncomeFrequency frequency,
+    private BigDecimal normalizeExpenseToMonthly(BigDecimal amount, IncomeFrequency frequency,
                                                  Integer occurrencesPerMonth) {
         if (frequency == IncomeSource.IncomeFrequency.ONE_TIME) return BigDecimal.ZERO;
         if (occurrencesPerMonth != null) {
