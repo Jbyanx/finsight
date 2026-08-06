@@ -956,9 +956,8 @@ function PocketForm({
       {editing ? (
         <ReadOnly label="Saldo" value={money(initial.balance)} />
       ) : (
-        <Field
+        <MoneyField
           label="Saldo"
-          type="number"
           value={balance}
           onChange={setBalance}
           placeholder="200000"
@@ -974,9 +973,8 @@ function PocketForm({
         />
       )}
       {!removeGoal && (
-        <Field
+        <MoneyField
           label="Meta (opcional)"
-          type="number"
           value={goalAmount}
           onChange={setGoalAmount}
           placeholder="1000000"

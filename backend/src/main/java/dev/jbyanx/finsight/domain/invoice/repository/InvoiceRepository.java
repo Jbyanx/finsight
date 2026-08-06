@@ -2,8 +2,6 @@ package dev.jbyanx.finsight.domain.invoice.repository;
 
 import dev.jbyanx.finsight.domain.invoice.entity.Invoice;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,14 +11,6 @@ public interface InvoiceRepository extends JpaRepository<Invoice, String> {
     List<Invoice> findAllByUserIdAndActiveTrue(String userId);
 
     Optional<Invoice> findByIdAndUserId(String id, String userId);
-
-    // Facturas que vencen en X días — para alertas
-    @Query("SELECT i FROM Invoice i WHERE i.user.id = :userId AND i.active = true AND " +
-            "((:startDay <= :endDay AND i.dueDay BETWEEN :startDay AND :endDay) OR " +
-            " (:startDay > :endDay AND (i.dueDay >= :startDay OR i.dueDay <= :endDay)))")
-    List<Invoice> findUpcomingByUserId(@Param("userId") String userId,
-                                       @Param("startDay") int startDay,
-                                       @Param("endDay") int endDay);
 
     // Facturas que debo cobrar a otros
     List<Invoice> findAllByUserIdAndOwnFalseAndActiveTrue(String userId);

@@ -10,12 +10,14 @@ import dev.jbyanx.finsight.domain.income.entity.OperationalExpense;
 import dev.jbyanx.finsight.domain.income.repository.IncomeSourceRepository;
 import dev.jbyanx.finsight.domain.income.repository.OperationalExpenseRepository;
 import dev.jbyanx.finsight.domain.invoice.entity.Invoice;
+import dev.jbyanx.finsight.domain.invoice.entity.InvoicePayment.PaymentStatus;
+import dev.jbyanx.finsight.domain.invoice.repository.InvoicePaymentRepository;
+import dev.jbyanx.finsight.domain.invoice.repository.InvoicePaymentRepository.PaidPeriod;
 import dev.jbyanx.finsight.domain.invoice.repository.InvoiceRepository;
 import dev.jbyanx.finsight.domain.cash.entity.Cash;
 import dev.jbyanx.finsight.domain.cash.repository.CashRepository;
 import dev.jbyanx.finsight.domain.savings.entity.SavingsAccount;
 import dev.jbyanx.finsight.domain.savings.repository.SavingsAccountRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -23,12 +25,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -42,11 +45,31 @@ class FinancialServiceImplTest {
     @Mock private IncomeSourceRepository incomeSourceRepository;
     @Mock private OperationalExpenseRepository operationalExpenseRepository;
     @Mock private InvoiceRepository invoiceRepository;
+    @Mock private InvoicePaymentRepository invoicePaymentRepository;
 
     @InjectMocks
     private FinancialServiceImpl financialService;
 
     private final String USER_ID = "user-1";
+
+    /**
+     * Vencimiento dentro de la ventana de 7 días, expresado como día del mes.
+     * Se calcula relativo a hoy para que el test no dependa de la fecha en que corre:
+     * el servicio resuelve la fecha real, así que el cruce de mes queda cubierto solo.
+     */
+    private static LocalDate dueDateInWindow() {
+        return LocalDate.now().plusDays(3);
+    }
+
+    private static Invoice invoiceDueInWindow() {
+        return Invoice.builder()
+                .id("inv-1")
+                .description("Internet")
+                .amount(new BigDecimal("60000"))
+                .dueDay(dueDateInWindow().getDayOfMonth())
+                .own(true)
+                .build();
+    }
 
     @Test
     void getSummary_HappyPath_CalculatesEverythingCorrectly() {
@@ -65,14 +88,12 @@ class FinancialServiceImplTest {
                 .balance(new BigDecimal("50000")).shared(false).build();
         when(savingsAccountRepository.findAllByUserIdAndActiveTrue(USER_ID))
                 .thenReturn(List.of(account));
-
         Cash cash = Cash.builder().balance(new BigDecimal("20000")).build();
         when(cashRepository.findByUserId(USER_ID)).thenReturn(Optional.of(cash));
 
         // 3. Setup Deudas (Total 1M, Cuota 100k)
         when(fixedDebtRepository.sumRemainingBalanceByUserId(USER_ID))
                 .thenReturn(new BigDecimal("1000000"));
-
         dev.jbyanx.finsight.domain.debt.entity.FixedDebt debt =
                 dev.jbyanx.finsight.domain.debt.entity.FixedDebt.builder()
                         .monthlyPayment(new BigDecimal("100000")).build();
@@ -85,72 +106,120 @@ class FinancialServiceImplTest {
                 .frequency(IncomeFrequency.PER_SHIFT).build(); // 60k * 12 = 720k mensual
         when(incomeSourceRepository.findAllByUserIdAndActiveTrue(USER_ID))
                 .thenReturn(List.of(income));
-
         OperationalExpense expense = OperationalExpense.builder()
                 .estimatedAmount(new BigDecimal("20000"))
                 .frequency(IncomeFrequency.PER_SHIFT).build(); // 20k * 12 = 240k mensual
         when(operationalExpenseRepository.findAllByUserIdAndActiveTrue(USER_ID))
                 .thenReturn(List.of(expense));
 
-        // 5. Setup Facturas
-        Invoice invoice = Invoice.builder().id("inv-1").amount(new BigDecimal("60000")).own(true).build();
-        // Usamos anyInt() para que el test no falle cuando cambie el día del mes
-        when(invoiceRepository.findUpcomingByUserId(eq(USER_ID), anyInt(), anyInt()))
-                .thenReturn(List.of(invoice));
+        // 5. Setup Facturas — vence dentro de la ventana y no tiene pago registrado
+        when(invoiceRepository.findAllByUserIdAndActiveTrue(USER_ID))
+                .thenReturn(List.of(invoiceDueInWindow()));
+        when(invoicePaymentRepository.findPaidPeriods(any(), eq(PaymentStatus.PAID)))
+                .thenReturn(Collections.emptyList());
 
         // EJECUCIÓN
         FinancialSummaryResponse response = financialService.getSummary(USER_ID);
 
         // ASERCIONES
         assertNotNull(response);
-
         // Tarjetas
         assertEquals(0, new BigDecimal("400000").compareTo(response.getTotalCreditLimit()));
         assertEquals(0, new BigDecimal("200000").compareTo(response.getTotalAvailableCredit()));
         assertEquals(0, new BigDecimal("50.00").compareTo(response.getOverallUtilizationPercentage()));
         assertEquals(1, response.getCardAlerts().size());
-
         // La recomendación de pago para bajar al 30% (Ideal: 400k * 0.3 = 120k. Usado 200k. Pago = 80k)
         assertEquals(0, new BigDecimal("80000.00").compareTo(response.getCardAlerts().get(0).getRecommendedPayment()));
-
         // Liquidez
         assertEquals(0, new BigDecimal("50000").compareTo(response.getTotalSavingsBalance()));
         assertEquals(0, new BigDecimal("20000").compareTo(response.getTotalCashBalance()));
         assertEquals(0, new BigDecimal("70000").compareTo(response.getTotalAvailableBalance()));
-
         // Deudas
         assertEquals(0, new BigDecimal("1000000").compareTo(response.getTotalRemainingDebt()));
         assertEquals(0, new BigDecimal("100000").compareTo(response.getTotalMonthlyDebtPayment()));
-
         // Flujo de Caja
         assertEquals(0, new BigDecimal("720000").compareTo(response.getEstimatedMonthlyIncome()));
         assertEquals(0, new BigDecimal("240000").compareTo(response.getEstimatedMonthlyOperationalExpenses()));
         assertEquals(0, new BigDecimal("480000").compareTo(response.getEstimatedNetIncome())); // 720k - 240k
-
         // Facturas
         assertEquals(1, response.getUpcomingInvoices().size());
     }
 
     @Test
     void getSummary_EmptyState_ReturnsAllZeros() {
-        // Configuramos todos los repositorios para devolver vacío o null
         when(creditCardRepository.findAllByUserIdAndActiveTrue(USER_ID)).thenReturn(Collections.emptyList());
         when(savingsAccountRepository.findAllByUserIdAndActiveTrue(USER_ID)).thenReturn(Collections.emptyList());
         when(cashRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
-        when(fixedDebtRepository.sumRemainingBalanceByUserId(USER_ID)).thenReturn(null); // O BigDecimal.ZERO si tu query lo garantiza
+        when(fixedDebtRepository.sumRemainingBalanceByUserId(USER_ID)).thenReturn(null);
         when(fixedDebtRepository.findAllByUserIdAndActiveTrue(USER_ID)).thenReturn(Collections.emptyList());
         when(incomeSourceRepository.findAllByUserIdAndActiveTrue(USER_ID)).thenReturn(Collections.emptyList());
         when(operationalExpenseRepository.findAllByUserIdAndActiveTrue(USER_ID)).thenReturn(Collections.emptyList());
-        when(invoiceRepository.findUpcomingByUserId(eq(USER_ID), anyInt(), anyInt())).thenReturn(Collections.emptyList());
+        when(invoiceRepository.findAllByUserIdAndActiveTrue(USER_ID)).thenReturn(Collections.emptyList());
 
         FinancialSummaryResponse response = financialService.getSummary(USER_ID);
 
-        // Aserciones para el Empty State
         assertNotNull(response);
         assertEquals(0, BigDecimal.ZERO.compareTo(response.getTotalCreditLimit()));
         assertEquals(0, BigDecimal.ZERO.compareTo(response.getOverallUtilizationPercentage()));
         assertEquals(0, BigDecimal.ZERO.compareTo(response.getEstimatedNetIncome()));
         assertTrue(response.getCardAlerts().isEmpty());
         assertTrue(response.getUpcomingInvoices().isEmpty());
+        // Sin candidatas no se consulta la tabla de pagos.
+        org.mockito.Mockito.verifyNoInteractions(invoicePaymentRepository);
+    }
+
+    @Test
+    void getSummary_InvoiceAlreadyPaidForThatPeriod_IsNotAlerted() {
+        LocalDate due = dueDateInWindow();
+        when(invoiceRepository.findAllByUserIdAndActiveTrue(USER_ID))
+                .thenReturn(List.of(invoiceDueInWindow()));
+        when(invoicePaymentRepository.findPaidPeriods(any(), eq(PaymentStatus.PAID)))
+                .thenReturn(List.of(paidPeriod("inv-1", due.getYear(), due.getMonthValue())));
+
+        FinancialSummaryResponse response = financialService.getSummary(USER_ID);
+
+        assertTrue(response.getUpcomingInvoices().isEmpty(),
+                "Una factura con pago registrado para su período no debe seguir en próximas");
+    }
+
+    @Test
+    void getSummary_PaymentBelongsToAnotherPeriod_StillAlerts() {
+        LocalDate due = dueDateInWindow();
+        LocalDate otherPeriod = due.minusMonths(1);
+        when(invoiceRepository.findAllByUserIdAndActiveTrue(USER_ID))
+                .thenReturn(List.of(invoiceDueInWindow()));
+        when(invoicePaymentRepository.findPaidPeriods(any(), eq(PaymentStatus.PAID)))
+                .thenReturn(List.of(paidPeriod(
+                        "inv-1", otherPeriod.getYear(), otherPeriod.getMonthValue())));
+
+        FinancialSummaryResponse response = financialService.getSummary(USER_ID);
+
+        assertEquals(1, response.getUpcomingInvoices().size(),
+                "El pago del mes anterior no debe ocultar el vencimiento de este período");
+    }
+
+    @Test
+    void getSummary_InvoiceOutsideTheWindow_IsNotAlerted() {
+        Invoice farAway = Invoice.builder()
+                .id("inv-2")
+                .description("Gimnasio")
+                .amount(new BigDecimal("90000"))
+                .dueDay(LocalDate.now().plusDays(20).getDayOfMonth())
+                .own(true)
+                .build();
+        when(invoiceRepository.findAllByUserIdAndActiveTrue(USER_ID))
+                .thenReturn(List.of(farAway));
+
+        FinancialSummaryResponse response = financialService.getSummary(USER_ID);
+
+        assertTrue(response.getUpcomingInvoices().isEmpty());
+    }
+
+    private static PaidPeriod paidPeriod(String invoiceId, int year, int month) {
+        return new PaidPeriod() {
+            @Override public String getInvoiceId() { return invoiceId; }
+            @Override public Integer getPeriodYear() { return year; }
+            @Override public Integer getPeriodMonth() { return month; }
+        };
     }
 }
